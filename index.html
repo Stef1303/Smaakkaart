@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Smaakkaart</title>
+<link rel="stylesheet" href="lib/maplibre-gl.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: één kolom op telefoonbreedte. Kaart bovenaan (zoom en sleep), detail en lijst eronder, tabbalk onderin. */
+:root {
+  --bg: #F2F5F3;
+  --surface: #FFFFFF;
+  --fg: #14201B;
+  --muted: #58675F;
+  --line: #D6DDD9;
+  --accent: #1F4FE0;
+  --accent-fg: #FFFFFF;
+  --land: #E8EEE2;
+  --park: #CFE4C4;
+  --urban: #E2DFD6;
+  --sand: #F0E6C8;
+  --water: #B9DAEE;
+  --water-label: #4B7FA3;
+  --road: #FBD98A;
+  --road-edge: #D2A24A;
+  --minor: #FFFFFF;
+  --minor-edge: #D3D0C6;
+  --halo: #E8EEE2;
+  --label: #4F5E56;
+  --p1: #A9BDFF; --p1-fg: #0E1A4D;
+  --p2: #4F78F5; --p2-fg: #FFFFFF;
+  --p3: #1636C0; --p3-fg: #FFFFFF;
+  --web: #9A5B00;
+  --web-bg: #FBEFD9;
+  --own: #0F6B3E;
+  --own-bg: #DDF3E6;
+  --font-display: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1613; --surface: #17211C; --fg: #E7EEE9; --muted: #98A89F; --line: #27352E;
+    --accent: #7E9DFF; --accent-fg: #0B1230;
+    --land: #1B2620; --park: #203428; --urban: #27312B; --sand: #3A3626; --water: #142B3A; --water-label: #6FA3C6;
+    --road: #8F7633; --road-edge: #5E4D22; --minor: #33403A; --minor-edge: #3C4A43; --halo: #1B2620; --label: #A9B9AF;
+    --p1: #4A5FB0; --p1-fg: #FFFFFF; --p2: #7E9DFF; --p2-fg: #0B1230; --p3: #B5C7FF; --p3-fg: #0B1230;
+    --web: #F0BE6A; --web-bg: #3A2D12; --own: #7FDDA8; --own-bg: #12331F;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1613; --surface: #17211C; --fg: #E7EEE9; --muted: #98A89F; --line: #27352E;
+  --accent: #7E9DFF; --accent-fg: #0B1230;
+  --land: #1B2620; --park: #203428; --urban: #27312B; --sand: #3A3626; --water: #142B3A; --water-label: #6FA3C6;
+  --road: #8F7633; --road-edge: #5E4D22; --minor: #33403A; --minor-edge: #3C4A43; --halo: #1B2620; --label: #A9B9AF;
+  --p1: #4A5FB0; --p1-fg: #FFFFFF; --p2: #7E9DFF; --p2-fg: #0B1230; --p3: #B5C7FF; --p3-fg: #0B1230;
+  --web: #F0BE6A; --web-bg: #3A2D12; --own: #7FDDA8; --own-bg: #12331F;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; padding-inline: 16px; padding-block: 0 96px; }
+.app { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; padding-top: 18px; }
+h1 { font-family: var(--font-display); font-size: 30px; line-height: 1.1; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+h2 { font-family: var(--font-display); font-size: 20px; line-height: 1.2; font-weight: 700; margin: 0; text-wrap: balance; }
+h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; margin: 0; }
+p { margin: 0; }
+.tagline { color: var(--muted); font-size: 14px; }
+.notice { font-size: 13px; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: 10px; padding: 8px 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+
+.mapwrap { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--land); position: relative; }
+#map { width: 100%; height: min(68vh, 460px); min-height: 320px; }
+.mapnote { position: absolute; left: 12px; right: 12px; top: 56px; background: var(--web-bg); color: var(--web); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; font-weight: 700; z-index: 3; }
+.pin { cursor: pointer; outline: none; }
+.pin .pinsvg { display: block; overflow: visible; transform-origin: 50% 94%; }
+.pin.on .pinsvg { transform: scale(1.2); }
+.pin .body { stroke: var(--surface); stroke-width: 2; }
+.pin.on .body { stroke: var(--fg); stroke-width: 2.5; }
+.pin:focus-visible .body { stroke: var(--accent); stroke-width: 3; }
+.pin text { font-family: var(--font-body); font-size: 11.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; font-variant-numeric: tabular-nums; pointer-events: none; }
+.homemark { width: 16px; height: 16px; }
+.homemark .hd { display: block; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+.homemark .homelab { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-family: var(--font-body); font-size: 11px; font-weight: 700; color: #14201B; background: rgba(255,255,255,.88); padding: 1px 6px; border-radius: 6px; }
+.zoom { position: absolute; top: 10px; left: 10px; z-index: 2; }
+.zoom button { height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.18); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 12.5px; color: var(--muted); padding: 10px 12px; border-top: 1px solid var(--line); background: var(--surface); }
+.legend span.sw { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -2px; margin-right: 5px; }
+
+.hero-line { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.score { font-family: var(--font-display); font-size: 34px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; text-align: right; }
+.score small { display: block; font-family: var(--font-body); font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 13px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); white-space: nowrap; }
+.chip.dots { letter-spacing: 1px; }
+.chip.fl { display: inline-flex; align-items: center; gap: 6px; }
+.chip.fl .flags { display: inline-flex; gap: 2px; }
+.chip.fl svg { width: 16px; height: 16px; display: block; }
+.links { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.links a { display: inline-block; text-decoration: none; font-weight: 700; font-size: 14px; color: var(--accent); border: 1px solid var(--line); border-radius: 10px; padding: 7px 12px; }
+.links a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.legend .fkey { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; width: 100%; }
+.legend .fkey > span { display: inline-flex; align-items: center; gap: 5px; }
+.legend .fkey svg { width: 16px; height: 16px; display: block; }
+.photos { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.tile { margin: 0; flex: 0 0 148px; display: flex; flex-direction: column; gap: 6px; }
+.tile img, .tile .ph { width: 148px; height: 104px; border-radius: 10px; object-fit: cover; display: block; overflow: hidden; }
+.tile .ph svg { width: 100%; height: 100%; display: block; }
+.tile figcaption { font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 6px; align-self: flex-start; max-width: 100%; }
+.tile.own figcaption { color: var(--own); background: var(--own-bg); }
+.tile.web figcaption { color: var(--web); background: var(--web-bg); }
+.review { border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 3px; }
+.review .top { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; }
+.review .top span:last-child { font-variant-numeric: tabular-nums; }
+.review p { color: var(--muted); }
+.row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); padding: 10px 0; color: inherit; font: inherit; cursor: pointer; }
+.row:first-of-type { border-top: 0; }
+.row .thumb { flex: none; width: 52px; height: 52px; border-radius: 10px; overflow: hidden; }
+.row .thumb svg, .row .thumb img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.row .nm { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.row .nm b { overflow-wrap: anywhere; }
+.row .nm span { font-size: 13px; color: var(--muted); }
+.badge { min-width: 42px; text-align: center; font-weight: 700; font-size: 14px; padding: 4px 8px; border-radius: 8px; font-variant-numeric: tabular-nums; }
+.l1 { background: var(--p1); color: var(--p1-fg); } .l2 { background: var(--p2); color: var(--p2-fg); } .l3 { background: var(--p3); color: var(--p3-fg); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .row:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.btn { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 10px; padding: 11px 16px; font-weight: 700; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+.btn.small { padding: 7px 12px; font-size: 14px; }
+label { font-weight: 700; font-size: 14px; display: flex; flex-direction: column; gap: 6px; }
+input[type=text], select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+textarea { resize: vertical; min-height: 92px; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+input[type=file] { font-weight: 400; font-size: 14px; max-width: 100%; }
+.rangeout { font-family: var(--font-display); font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.examples { display: flex; flex-wrap: wrap; gap: 8px; }
+.examples button { background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13.5px; cursor: pointer; text-align: left; }
+.interp { font-size: 14px; color: var(--muted); }
+.interp b { color: var(--fg); }
+.res { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.res .head { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.res .head b { font-family: var(--font-display); font-size: 17px; }
+.quote { color: var(--muted); font-size: 14px; }
+.near { font-size: 13.5px; color: var(--web); background: var(--web-bg); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.previews { display: flex; gap: 8px; flex-wrap: wrap; }
+.previews .tile { flex-basis: 96px; }
+.previews .tile img { width: 96px; height: 72px; }
+.field { display: flex; flex-direction: column; gap: 10px; }
+.sugg { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); }
+.sg { display: flex; align-items: center; gap: 10px; text-align: left; width: 100%; background: none; border: 0; border-top: 1px solid var(--line); padding: 10px 12px; cursor: pointer; color: inherit; font: inherit; }
+.sg:first-child { border-top: 0; }
+.sg:hover { background: var(--surface); }
+.sg .fl { flex: none; display: inline-flex; min-width: 18px; }
+.sg svg { width: 18px; height: 18px; display: block; }
+.sg .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; font-weight: 400; }
+.sg .tx b { overflow-wrap: anywhere; }
+.sg .tx span { font-size: 13px; color: var(--muted); }
+.sg.none { color: var(--accent); font-weight: 700; }
+.sgmsg { padding: 10px 12px; font-size: 13.5px; color: var(--muted); }
+.tag { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: var(--own-bg); color: var(--own); white-space: nowrap; }
+.tag.new { background: var(--web-bg); color: var(--web); }
+.chosen, .notfound { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--bg); display: flex; flex-direction: column; gap: 10px; }
+.ch-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.ch-top b { overflow-wrap: anywhere; }
+.newfields { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.errtxt { color: var(--web); background: var(--web-bg); border-radius: 8px; padding: 8px 10px; font-size: 13.5px; font-weight: 700; margin: 0; }
+.tabs { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); z-index: 5; }
+.tabs .inner { max-width: 560px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); }
+.tabs button { background: none; border: 0; padding: 14px 6px 13px; font-weight: 700; font-size: 14px; color: var(--muted); cursor: pointer; border-top: 3px solid transparent; }
+.tabs button[aria-selected="true"] { color: var(--accent); border-top-color: var(--accent); }
+.toast { position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 14px; z-index: 6; max-width: calc(100% - 32px); }
+.small-note { font-size: 12.5px; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .tabs button { transition: color .15s; } }
+
+.who { display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--muted); }
+.who b { color:var(--fg); }
+.who button { background:none; border:1px solid var(--line); border-radius:8px; padding:4px 10px; font-size:13px; cursor:pointer; color:var(--accent); font-weight:700; }
+.who input { width:130px; padding:5px 8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); }
+.searchrow { display:flex; gap:8px; }
+.searchrow input { flex:1; min-width:0; }
+.searchrow .btn { flex:none; }
+.initial { display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:700; font-size:20px; color:#fff; width:100%; height:100%; }
+.delrev { background:none; border:0; color:var(--web); font-size:12.5px; font-weight:700; cursor:pointer; padding:2px 0; align-self:flex-start; }
+.when { font-size:12px; color:var(--muted); font-weight:400; }
+.nofoto { font-size:13px; color:var(--muted); }
+.sg.act { background:var(--surface); }
+#status { font-size:13px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Smaakkaart</h1>
+    <div class="who" id="who" hidden></div>
+  </header>
+  <p class="notice" id="status" hidden></p>
+
+  <section id="gate" class="card" hidden>
+    <h2>Welkom bij Smaakkaart</h2>
+    <p class="tagline">Eten dat jij en je vrienden goed vinden. Vul alleen je naam in, dan kun je meteen beginnen.</p>
+    <form id="gateform" class="field" autocomplete="off">
+      <label for="gate-name">Jouw naam
+        <input type="text" id="gate-name" placeholder="Bijvoorbeeld Stef" maxlength="30" required>
+      </label>
+      <button class="btn" id="gate-btn" type="submit">Verder</button>
+      <p class="errtxt" id="gate-err" role="alert" hidden></p>
+    </form>
+    <p class="small-note">Geen e-mail of wachtwoord nodig. Op een ander apparaat of na het wissen van je browser begin je opnieuw met een nieuwe naam.</p>
+  </section>
+
+  <div id="main" hidden>
+  <section id="tab-map" aria-label="Kaart">
+    <div class="stack">
+      <div class="mapwrap">
+        <div id="map" role="region" aria-label="Kaart met restaurants"></div>
+        <div class="zoom"><button type="button" id="zreset" class="small" aria-label="Alle restaurants in beeld">Alles</button></div>
+        <div class="mapnote" id="mapnote" hidden>De kaart kon niet laden. Controleer je internetverbinding en ververs de pagina.</div>
+        <div class="legend" aria-label="Legenda">
+          <span><span class="sw l1"></span>onder 7,5</span>
+          <span><span class="sw l2"></span>7,5 tot 8,5</span>
+          <span><span class="sw l3"></span>8,5 en hoger</span>
+          <span>Cijfer in de pin: gemiddelde van jullie reviews.</span>
+          <span class="fkey" id="flagkey"></span>
+        </div>
+      </div>
+      <p class="small-note">Kaart van OpenStreetMap (via OpenFreeMap). Sleep om te verschuiven, knijp of gebruik + en − om te zoomen.</p>
+      <div class="card" id="detail"></div>
+      <div class="card">
+        <h3>Alle restaurants</h3>
+        <div id="list"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-ask" aria-label="Vraag het de AI" hidden>
+    <div class="stack">
+      <div class="card">
+        <h2>Waar gaan we eten?</h2>
+        <label for="q">Vertel wat je zoekt
+          <textarea id="q">Ik wil graag Spaans eten volgende week. Ik zoek een lage prijsklasse, maar wel veel sfeer. Maximaal 45 minuten rijden vanaf Oud-Beijerland.</textarea>
+        </label>
+        <div class="examples" id="examples"></div>
+        <button class="btn" id="askbtn" type="button">Zoek restaurants</button>
+        <p class="small-note">Demo: dit leest nu alleen trefwoorden (keuken, prijs, sfeer, minuten) in jullie eigen reviews. Later beantwoordt Claude je vraag.</p>
+      </div>
+      <div class="card" id="answer" hidden></div>
+    </div>
+  </section>
+
+  <section id="tab-review" aria-label="Review schrijven" hidden>
+    <form class="card" id="form" autocomplete="off">
+      <h2>Review schrijven</h2>
+      <div class="field">
+        <label for="rv-search">Restaurant
+          <span class="searchrow">
+            <input type="text" id="rv-search" placeholder="Typ de naam, bijvoorbeeld Takumi" maxlength="60" autocomplete="off">
+            <button type="button" class="btn" id="rv-go">Zoek</button>
+          </span>
+        </label>
+        <div class="sugg" id="rv-sugg" role="listbox" aria-label="Gevonden restaurants" hidden></div>
+        <div class="notfound" id="rv-nf" hidden>
+          <h3>Waar is het?</h3>
+          <p class="small-note">We vonden dit restaurant niet. Vul de plaats in, dan zoeken we de plek op de kaart.</p>
+          <label for="nf-city">Plaats (verplicht)
+            <input type="text" id="nf-city" placeholder="Bijvoorbeeld Dordrecht" maxlength="40">
+          </label>
+          <label for="nf-street">Straat (niet verplicht)
+            <input type="text" id="nf-street" placeholder="Helpt bij het vinden van de juiste plek" maxlength="60">
+          </label>
+          <button type="button" class="btn small" id="nf-go" style="align-self:flex-start">Zoek de plek</button>
+          <p class="small-note" id="nf-msg" role="status"></p>
+        </div>
+        <div class="chosen" id="rv-chosen" hidden></div>
+        <p class="errtxt" id="rv-err" role="alert" hidden></p>
+      </div>
+      <label for="rv-score">Cijfer
+        <span class="rangeout" id="rv-out">8,0</span>
+        <input type="range" id="rv-score" min="1" max="10" step="0.5" value="8">
+      </label>
+      <label for="rv-text">Wat vond je ervan?
+        <textarea id="rv-text" placeholder="Eten, sfeer, prijs, tip voor de volgende keer" maxlength="500"></textarea>
+      </label>
+      <label for="rv-photo">Foto's (maximaal 10)
+        <input type="file" id="rv-photo" accept="image/*" multiple>
+      </label>
+      <div class="previews" id="previews"></div>
+      <p class="small-note">Foto's die je hier toevoegt krijgen het label "Bij review" en zijn alleen zichtbaar voor mensen die de app gebruiken.</p>
+      <button class="btn" type="submit">Review opslaan</button>
+      <p class="small-note">Restaurantgegevens komen van OpenStreetMap-bijdragers (© OpenStreetMap). Niet elk restaurant staat erin.</p>
+    </form>
+  </section>
+  </div>
+</div>
+
+<nav class="tabs" id="nav" aria-label="Hoofdmenu" hidden>
+  <div class="inner" role="tablist">
+    <button type="button" role="tab" id="t-map" aria-selected="true" data-tab="map">Kaart</button>
+    <button type="button" role="tab" id="t-ask" aria-selected="false" data-tab="ask">Vraag de AI</button>
+    <button type="button" role="tab" id="t-review" aria-selected="false" data-tab="review">Review</button>
+  </div>
+</nav>
+<div class="toast" id="toast" hidden></div>
+
+<script src="lib/maplibre-gl.js"></script>
+<script src="lib/supabase.js"></script>
+<script>
+(function () {
+  'use strict';
+  var SUPABASE_URL = 'https://jjdqajhetxyiyjqedtcf.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_2VF5lH5fsdoJcgAovLTWNw_M5fqmpt7';
+  var BUCKET = 'review-fotos';
+  var NS = 'http://www.w3.org/2000/svg';
+  var HOME = [4.418, 51.825];
+  var $ = function (s) { return document.querySelector(s); };
+
+  /* ---------- hulpfuncties ---------- */
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function f1(n) { return n.toFixed(1); }
+  function fmt(n) { return n.toFixed(1).replace('.', ','); }
+  function eur(n) { return '€€€'.slice(0, n || 0); }
+  function dots(n) { return '●●●●●'.slice(0, n) + '○○○○○'.slice(0, 5 - n); }
+  function level(s) { return s >= 8.5 ? 3 : s >= 7.5 ? 2 : 1; }
+  function hash(s) { var h = 0; for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) % 360; } return h; }
+  function norm(s) { return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function avg(r) { var t = 0; r.reviews.forEach(function (v) { t += v.score; }); return t / r.reviews.length; }
+  function dist(lo1, la1, lo2, la2) {
+    var t = Math.PI / 180, dLa = (la2 - la1) * t, dLo = (lo2 - lo1) * t;
+    var a = Math.sin(dLa / 2) * Math.sin(dLa / 2) + Math.cos(la1 * t) * Math.cos(la2 * t) * Math.sin(dLo / 2) * Math.sin(dLo / 2);
+    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+  function km(lo, la) { return dist(HOME[0], HOME[1], lo, la); }
+  function driveMin(d) { return Math.max(5, Math.round(d * 1.6) + 3); }
+  function cleanUrl(u) {
+    u = String(u || '').trim();
+    if (!u) return '';
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    return /^https?:\/\/[^\s]+\.[^\s]+/i.test(u) ? u : '';
+  }
+  function niceErr(e) {
+    var m = (e && e.message) ? e.message : String(e);
+    if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return 'geen verbinding met de server. Controleer je internet.';
+    return m;
+  }
+  function when(iso) {
+    try { var d = new Date(iso); return d.getDate() + '-' + (d.getMonth() + 1) + '-' + d.getFullYear(); } catch (e) { return ''; }
+  }
+
+  /* ---------- keukens, vlaggen ---------- */
+  var CUISINES = {
+    Spaans: ['ES'], Italiaans: ['IT'], Japans: ['JP'], Grieks: ['GR'], Frans: ['FR'], Nederlands: ['NL'], Mediterraan: ['ES', 'IT'], Europees: ['EU'], Wereldkeuken: ['WORLD'],
+    Amerikaans: ['US'], Argentijns: ['AR'], Belgisch: ['BE'], Braziliaans: ['BR'], Brits: ['GB'], Chinees: ['CN'], Duits: ['DE'], Egyptisch: ['EG'], Ethiopisch: ['ET'],
+    Indiaas: ['IN'], Indonesisch: ['ID'], 'Israëlisch': ['IL'], Koreaans: ['KR'], Libanees: ['LB'], Marokkaans: ['MA'], Mexicaans: ['MX'], Peruaans: ['PE'], Pools: ['PL'],
+    Portugees: ['PT'], Surinaams: ['SR'], Thais: ['TH'], Turks: ['TR'], Vietnamees: ['VN'], Zwitsers: ['CH']
+  };
+  var CORE = ['Spaans', 'Italiaans', 'Japans', 'Grieks', 'Frans', 'Nederlands', 'Mediterraan', 'Europees', 'Wereldkeuken'];
+  var FLAG_FILES = ['nl', 'es', 'it', 'jp', 'gr', 'fr', 'eu', 'th', 'cn', 'in', 'tr', 'mx', 'us', 'kr', 'vn', 'pt', 'de', 'lb', 'id', 'sr', 'ar', 'ma', 'be', 'gb', 'br', 'pe', 'il', 'eg', 'et', 'ch', 'pl'];
+  var OSM_CU = { japanese: 'Japans', sushi: 'Japans', ramen: 'Japans', spanish: 'Spaans', tapas: 'Spaans', italian: 'Italiaans', pizza: 'Italiaans', pasta: 'Italiaans', greek: 'Grieks', french: 'Frans', dutch: 'Nederlands', regional: 'Nederlands', mediterranean: 'Mediterraan', european: 'Europees', international: 'Wereldkeuken', world: 'Wereldkeuken',
+    thai: 'Thais', chinese: 'Chinees', indian: 'Indiaas', turkish: 'Turks', mexican: 'Mexicaans', american: 'Amerikaans', burger: 'Amerikaans', korean: 'Koreaans', vietnamese: 'Vietnamees', portuguese: 'Portugees', german: 'Duits', lebanese: 'Libanees', indonesian: 'Indonesisch', surinamese: 'Surinaams', argentinian: 'Argentijns', moroccan: 'Marokkaans', belgian: 'Belgisch', brazilian: 'Braziliaans', peruvian: 'Peruaans', ethiopian: 'Ethiopisch', egyptian: 'Egyptisch', polish: 'Pools', swiss: 'Zwitsers', british: 'Brits', israeli: 'Israëlisch' };
+  function canonCuisine(name) {
+    var n = norm(name), k = Object.keys(CUISINES).filter(function (c) { return norm(c) === n; })[0];
+    return k || '';
+  }
+  function flagsFor(name) { var k = canonCuisine(name); return k ? CUISINES[k] : []; }
+  function cuisineFromTags(s) {
+    if (!s) return '';
+    var parts = String(s).toLowerCase().split(/[;,]/);
+    for (var i = 0; i < parts.length; i++) { var k = OSM_CU[parts[i].trim()]; if (k) return k; }
+    return '';
+  }
+
+  var fid = 0;
+  function flagInner(c, r) {
+    var a = -r, d = 2 * r, code = String(c).toLowerCase(), i, o;
+    if (FLAG_FILES.indexOf(code) > -1) {
+      return '<image href="lib/flags/' + code + '.svg" x="' + a + '" y="' + a + '" width="' + d + '" height="' + d + '" preserveAspectRatio="xMidYMid slice"/>';
+    }
+    o = '<rect x="' + a + '" y="' + a + '" width="' + d + '" height="' + d + '" fill="#2F7FD0"/>';
+    o += '<ellipse cx="' + f1(-r * 0.3) + '" cy="' + f1(-r * 0.15) + '" rx="' + f1(r * 0.38) + '" ry="' + f1(r * 0.5) + '" fill="#4DAA57"/><ellipse cx="' + f1(r * 0.45) + '" cy="' + f1(r * 0.35) + '" rx="' + f1(r * 0.3) + '" ry="' + f1(r * 0.28) + '" fill="#4DAA57"/><ellipse cx="' + f1(r * 0.35) + '" cy="' + f1(-r * 0.4) + '" rx="' + f1(r * 0.22) + '" ry="' + f1(r * 0.16) + '" fill="#4DAA57"/>';
+    o += '<ellipse rx="' + f1(r * 0.45) + '" ry="' + r + '" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width=".6"/><line x1="' + a + '" x2="' + r + '" y1="0" y2="0" stroke="#fff" stroke-opacity=".55" stroke-width=".6"/>';
+    return o;
+  }
+  function flagG(c, cx, cy, r) {
+    var id = 'fc' + (++fid);
+    return '<g transform="translate(' + f1(cx) + ' ' + f1(cy) + ')"><circle r="' + f1(r + 1.2) + '" fill="var(--surface)"/><clipPath id="' + id + '"><circle r="' + r + '"/></clipPath><g clip-path="url(#' + id + ')">' + flagInner(c, r) + '</g><circle r="' + r + '" fill="none" stroke="#000" stroke-opacity=".3" stroke-width=".6"/></g>';
+  }
+  function flagSvg(c) { return '<svg viewBox="-8 -8 16 16" aria-hidden="true">' + flagG(c, 0, 0, 7.4) + '</svg>'; }
+  function flagRow(list) { return '<span class="flags">' + (list || []).slice(0, 2).map(flagSvg).join('') + '</span>'; }
+  function pinFlags(list) {
+    if (!list || !list.length) return '';
+    if (list.length === 1) return flagG(list[0], 12, -33, 7);
+    return flagG(list[1], 16, -29, 6.4) + flagG(list[0], 7, -37, 6.4);
+  }
+
+  /* ---------- toestand ---------- */
+  var sb = null, me = null, R = [], selected = null, map = null, markers = [], fitted = false, lastLoad = 0;
+  var chosen = null, found = [], online = [], searching = false, searchMsg = '', pending = [], busy = false;
+
+  function byId(id) { return R.filter(function (r) { return r.id === id; })[0]; }
+  function setStatus(t) { var s = $('#status'); s.textContent = t || ''; s.hidden = !t; }
+  function toast(msg) {
+    var t = $('#toast'); t.textContent = msg; t.hidden = false;
+    clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, 3200);
+  }
+
+  /* ---------- gegevens uit Supabase ---------- */
+  function modelRest(row) {
+    return { id: row.id, name: row.naam, city: row.stad || '', street: row.straat || '', cuisine: row.keuken || '', flags: row.landen || [],
+      price: row.prijs || 2, sfeer: row.sfeer || 3, lon: row.lon, lat: row.lat, site: row.website || '', menu: row.menu_url || '',
+      by: row.toegevoegd_door, min: driveMin(km(row.lon, row.lat)), reviews: [] };
+  }
+  function signed(paths) {
+    if (!paths.length) return Promise.resolve({});
+    return sb.storage.from(BUCKET).createSignedUrls(paths, 3600).then(function (res) {
+      var m = {};
+      ((res && res.data) || []).forEach(function (x) { if (x && x.signedUrl) m[x.path] = x.signedUrl; });
+      return m;
+    });
+  }
+  function load() {
+    return Promise.all([
+      sb.from('restaurants').select('*'),
+      sb.from('reviews').select('id,restaurant_id,user_id,cijfer,tekst,created_at,profiles(naam),review_fotos(id,pad)').order('created_at', { ascending: true })
+    ]).then(function (res) {
+      if (res[0].error) throw res[0].error;
+      if (res[1].error) throw res[1].error;
+      var rests = res[0].data.map(modelRest), by = {}, paths = [];
+      rests.forEach(function (r) { by[r.id] = r; });
+      res[1].data.forEach(function (v) {
+        var r = by[v.restaurant_id];
+        if (!r) return;
+        var who = (v.profiles && v.profiles.naam) || 'Gast';
+        r.reviews.push({ id: v.id, uid: v.user_id, who: who, score: Number(v.cijfer), text: v.tekst || '', at: v.created_at,
+          photos: (v.review_fotos || []).map(function (f) { paths.push(f.pad); return { by: who, path: f.pad, data: '' }; }) });
+      });
+      return signed(paths).catch(function () { return {}; }).then(function (m) {
+        rests.forEach(function (r) { r.reviews.forEach(function (v) { v.photos.forEach(function (p) { p.data = m[p.path] || ''; }); }); });
+        R = rests.filter(function (r) { return r.reviews.length; });
+        lastLoad = Date.now();
+      });
+    });
+  }
+  function refresh() {
+    return load().then(function () {
+      setStatus('');
+      if (!selected || !byId(selected)) selected = R.length ? R.slice().sort(function (a, b) { return avg(b) - avg(a); })[0].id : null;
+      drawPins(); renderDetail(); renderList();
+      if (map && !fitted && R.length) { fitAll(false); fitted = true; }
+    }).catch(function (e) {
+      var m = niceErr(e);
+      if (/relation|schema cache|does not exist|PGRST205/i.test(m)) m = 'de database is nog niet ingericht. Voer supabase-setup.sql uit in Supabase.';
+      setStatus('Laden mislukt: ' + m);
+    });
+  }
+
+  /* ---------- inloggen met alleen een naam ---------- */
+  function lock(on) {
+    $('#gate').hidden = !on;
+    $('#main').hidden = on;
+    $('#nav').hidden = on;
+    $('#who').hidden = on;
+  }
+  function showWho(edit) {
+    var w = $('#who');
+    if (!me) { w.innerHTML = ''; return; }
+    if (edit) {
+      w.innerHTML = '<input type="text" id="who-in" maxlength="30" aria-label="Jouw naam" value="' + esc(me.naam) + '"><button type="button" id="who-save">Opslaan</button>';
+      $('#who-in').focus();
+      $('#who-save').addEventListener('click', saveName);
+      $('#who-in').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); saveName(); } });
+    } else {
+      w.innerHTML = '<span>Jij: <b>' + esc(me.naam) + '</b></span><button type="button" id="who-edit">Wijzig naam</button>';
+      $('#who-edit').addEventListener('click', function () { showWho(true); });
+    }
+  }
+  function saveName() {
+    var nm = $('#who-in').value.trim();
+    if (!nm) return;
+    sb.from('profiles').update({ naam: nm }).eq('id', me.id).then(function (res) {
+      if (res.error) { toast('Naam wijzigen mislukt: ' + niceErr(res.error)); return; }
+      me.naam = nm; showWho(false); refresh(); toast('Naam gewijzigd');
+    });
+  }
+  function afterLogin(user) {
+    return sb.from('profiles').select('naam').eq('id', user.id).maybeSingle().then(function (res) {
+      me = { id: user.id, naam: (res && res.data && res.data.naam) || 'Gast' };
+      lock(false); showWho(false); tab('map');
+      if (!map) initMap();
+      setStatus('Laden…');
+      return refresh();
+    });
+  }
+  function gateErr(t) { var e = $('#gate-err'); e.textContent = t; e.hidden = !t; }
+  function boot() {
+    if (typeof supabase === 'undefined' || !supabase.createClient) { lock(true); gateErr('De verbinding met de database kon niet worden geladen. Ververs de pagina.'); return; }
+    sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    $('#gateform').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var nm = $('#gate-name').value.trim();
+      if (!nm) { gateErr('Vul je naam in.'); return; }
+      gateErr(''); $('#gate-btn').disabled = true;
+      sb.auth.signInAnonymously({ options: { data: { naam: nm } } }).then(function (res) {
+        if (res.error) { throw res.error; }
+        return afterLogin(res.data.user);
+      }).catch(function (err) {
+        var m = niceErr(err);
+        if (/anonymous/i.test(m)) m = 'Anoniem inloggen staat nog uit. Zet in Supabase onder Authentication, Sign In / Providers, de schakelaar "Allow anonymous sign-ins" aan.';
+        gateErr('Inloggen lukt niet: ' + m);
+      }).then(function () { $('#gate-btn').disabled = false; });
+    });
+    sb.auth.getSession().then(function (r) {
+      if (r && r.data && r.data.session) return afterLogin(r.data.session.user);
+      lock(true);
+    }).catch(function () { lock(true); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && me && Date.now() - lastLoad > 20000) refresh(); });
+  }
+
+  /* ---------- kaart ---------- */
+  var LIGHT_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+  var DARK_STYLE = 'https://tiles.openfreemap.org/styles/dark';
+  function reduced() { return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  function isDark() {
+    var t = document.documentElement.getAttribute('data-theme');
+    if (t) return t === 'dark';
+    return !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+  function pickStyle() {
+    if (!isDark()) return Promise.resolve(LIGHT_STYLE);
+    return fetch(DARK_STYLE).then(function (r) { return r.ok ? DARK_STYLE : LIGHT_STYLE; }).catch(function () { return LIGHT_STYLE; });
+  }
+  function fitAll(animate) {
+    if (!map) return;
+    if (!R.length) { map.jumpTo({ center: HOME, zoom: 10 }); return; }
+    var b = new maplibregl.LngLatBounds(HOME, HOME);
+    R.forEach(function (r) { b.extend([r.lon, r.lat]); });
+    map.fitBounds(b, { padding: { top: 70, bottom: 36, left: 36, right: 36 }, duration: (animate && !reduced()) ? 700 : 0, maxZoom: 11 });
+  }
+  function pinSvg(r, lv, s) {
+    return '<svg class="pinsvg" viewBox="-26 -47 52 50" width="52" height="50" aria-hidden="true">' +
+      '<ellipse cx="0" cy="0" rx="7" ry="2.5" fill="#000" opacity=".25"/>' +
+      '<path class="body" d="M0 0C-5-8-13-13-13-22A13 13 0 1 1 13-22C13-13 5-8 0 0Z" fill="var(--p' + lv + ')"/>' +
+      '<text y="-22" fill="var(--p' + lv + '-fg)">' + fmt(s) + '</text>' + pinFlags(r.flags) + '</svg>';
+  }
+  function drawPins() {
+    if (!map) return;
+    markers.forEach(function (m) { m.remove(); });
+    markers = [];
+    R.forEach(function (r) {
+      var s = avg(r), lv = level(s), el = document.createElement('div');
+      el.className = 'pin' + (r.id === selected ? ' on' : '');
+      el.style.zIndex = r.id === selected ? '5' : '1';
+      el.setAttribute('role', 'button');
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('aria-label', r.name + ', cijfer ' + fmt(s));
+      el.innerHTML = pinSvg(r, lv, s);
+      el.addEventListener('click', function (e) { e.stopPropagation(); select(r.id, false); });
+      el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(r.id, false); } });
+      markers.push(new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, 3] }).setLngLat([r.lon, r.lat]).addTo(map));
+    });
+  }
+  function focusOn(r) {
+    if (!map) return;
+    map.flyTo({ center: [r.lon, r.lat], zoom: Math.max(map.getZoom(), 11.5), duration: reduced() ? 0 : 800 });
+  }
+  function dutchNames() {
+    try {
+      map.getStyle().layers.forEach(function (l) {
+        if (l.type !== 'symbol') return;
+        var tf = map.getLayoutProperty(l.id, 'text-field');
+        if (!tf) return;
+        var s = JSON.stringify(tf);
+        if (s.indexOf('name') < 0 || s.indexOf('"ref"') > -1) return;
+        map.setLayoutProperty(l.id, 'text-field', ['coalesce', ['get', 'name:nl'], ['get', 'name']]);
+      });
+    } catch (e) {}
+  }
+  function initMap() {
+    if (typeof maplibregl === 'undefined') { $('#mapnote').hidden = false; return; }
+    pickStyle().then(function (style) {
+      map = new maplibregl.Map({ container: 'map', style: style, center: HOME, zoom: 10, attributionControl: { compact: true } });
+      window.__map = map;
+      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+      map.on('load', function () { $('#mapnote').hidden = true; dutchNames(); });
+      map.on('error', function () { if (!map.isStyleLoaded()) $('#mapnote').hidden = false; });
+      var home = document.createElement('div');
+      home.className = 'homemark';
+      home.innerHTML = '<span class="hd"></span><span class="homelab">Oud-Beijerland</span>';
+      new maplibregl.Marker({ element: home }).setLngLat(HOME).addTo(map);
+      drawPins();
+      if (R.length) { fitAll(false); fitted = true; }
+      $('#zreset').addEventListener('click', function () { fitAll(true); });
+    });
+  }
+
+  /* ---------- foto's en detail ---------- */
+  function tile(p) {
+    var body = p.data ? '<img src="' + esc(p.data) + '" alt="Foto van ' + esc(p.by) + '" loading="lazy">' : '<div class="ph nofoto">Foto laadt niet</div>';
+    return '<figure class="tile own">' + body + '<figcaption>Bij review · ' + esc(p.by) + '</figcaption></figure>';
+  }
+  function photosOf(r) {
+    var list = [];
+    r.reviews.forEach(function (v) { v.photos.forEach(function (p) { list.push(p); }); });
+    return list;
+  }
+  function gsearch(t) { return 'https://www.google.com/search?q=' + encodeURIComponent(t); }
+  function linksHtml(r, extra) {
+    var site = cleanUrl(r.site), menu = cleanUrl(r.menu);
+    return '<div class="links">' +
+      (site ? '<a href="' + esc(site) + '" target="_blank" rel="noopener">Website</a>' : '<a href="' + esc(gsearch(r.name + ' ' + r.city)) + '" target="_blank" rel="noopener">Website zoeken</a>') +
+      (menu ? '<a href="' + esc(menu) + '" target="_blank" rel="noopener">Menukaart</a>' : '<a href="' + esc(gsearch(r.name + ' ' + r.city + ' menukaart')) + '" target="_blank" rel="noopener">Menukaart zoeken</a>') +
+      (extra || '') + '</div>';
+  }
+  function whereOf(r) { return (r.street ? r.street + ', ' : '') + r.city; }
+  function renderDetail() {
+    var box = $('#detail');
+    var r = selected ? byId(selected) : null;
+    if (!r) {
+      box.innerHTML = '<h2>Nog geen restaurants</h2><p class="tagline">Schrijf de eerste review, dan verschijnt het restaurant met een pin op de kaart.</p><button class="btn small" type="button" id="firstreview" style="align-self:flex-start">Review schrijven</button>';
+      $('#firstreview').addEventListener('click', function () { tab('review'); });
+      return;
+    }
+    var s = avg(r), photos = photosOf(r);
+    var html = '<div class="hero-line"><div><h2>' + esc(r.name) + '</h2><p class="tagline">' + esc(whereOf(r)) + ' · ca. ' + r.min + ' min rijden vanaf Oud-Beijerland</p></div>' +
+      '<div class="score">' + fmt(s) + '<small>' + r.reviews.length + ' review' + (r.reviews.length === 1 ? '' : 's') + '</small></div></div>' +
+      '<div class="chips"><span class="chip fl">' + flagRow(r.flags) + esc(r.cuisine || 'Keuken onbekend') + '</span><span class="chip">' + eur(r.price) + '</span><span class="chip dots" aria-label="Sfeer ' + r.sfeer + ' van 5">Sfeer ' + dots(r.sfeer) + '</span></div>' +
+      linksHtml(r) +
+      '<h3>Foto\'s</h3>' + (photos.length ? '<div class="photos">' + photos.map(tile).join('') + '</div>' : '<p class="small-note">Nog geen foto\'s. Voeg ze toe als je een review schrijft.</p>') +
+      '<h3>Reviews van vrienden</h3>' +
+      r.reviews.slice().reverse().map(function (v) {
+        return '<div class="review"><div class="top"><span>' + esc(v.who) + ' <span class="when">' + esc(when(v.at)) + '</span></span><span>' + fmt(v.score) + '</span></div>' + (v.text ? '<p>' + esc(v.text) + '</p>' : '') +
+          (me && v.uid === me.id ? '<button type="button" class="delrev" data-id="' + esc(v.id) + '">Verwijder mijn review</button>' : '') + '</div>';
+      }).join('') +
+      '<button class="btn ghost small" type="button" id="goreview" style="align-self:flex-start">Review schrijven</button>';
+    box.innerHTML = html;
+    $('#goreview').addEventListener('click', function () { chooseExisting(r.id); tab('review'); });
+    box.querySelectorAll('.delrev').forEach(function (b) { b.addEventListener('click', function () { delReview(r, b); }); });
+  }
+  function delReview(r, btn) {
+    if (btn.dataset.armed !== '1') {
+      btn.dataset.armed = '1'; btn.textContent = 'Tik nogmaals om te verwijderen';
+      setTimeout(function () { if (btn.isConnected) { btn.dataset.armed = ''; btn.textContent = 'Verwijder mijn review'; } }, 4000);
+      return;
+    }
+    var v = r.reviews.filter(function (x) { return x.id === btn.dataset.id; })[0];
+    if (!v) return;
+    var paths = v.photos.map(function (p) { return p.path; }), onlyOne = r.reviews.length === 1 && r.by === me.id;
+    btn.disabled = true;
+    sb.from('reviews').delete().eq('id', v.id).then(function (res) {
+      if (res.error) throw res.error;
+      var jobs = [];
+      if (paths.length) jobs.push(sb.storage.from(BUCKET).remove(paths));
+      if (onlyOne) jobs.push(sb.from('restaurants').delete().eq('id', r.id));
+      return Promise.all(jobs);
+    }).then(function () { toast('Review verwijderd'); return refresh(); })
+      .catch(function (e) { btn.disabled = false; toast('Verwijderen mislukt: ' + niceErr(e)); });
+  }
+  function thumb(r) {
+    var p = photosOf(r).filter(function (x) { return x.data; })[0];
+    if (p) return '<img src="' + esc(p.data) + '" alt="" loading="lazy">';
+    return '<span class="initial" style="background:hsl(' + hash(r.name) + ' 32% 46%)">' + esc(r.name.charAt(0).toUpperCase()) + '</span>';
+  }
+  function renderList() {
+    var box = $('#list');
+    box.innerHTML = '';
+    if (!R.length) { box.innerHTML = '<p class="small-note">Nog niets om te laten zien.</p>'; return; }
+    R.slice().sort(function (a, b) { return avg(b) - avg(a); }).forEach(function (r) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'row';
+      b.innerHTML = '<span class="thumb">' + thumb(r) + '</span><span class="nm"><b>' + esc(r.name) + '</b><span>' + esc(r.cuisine || 'Keuken onbekend') + ' · ' + eur(r.price) + ' · ' + esc(r.city) + ' · ' + r.min + ' min</span></span><span class="badge l' + level(avg(r)) + '">' + fmt(avg(r)) + '</span>';
+      b.addEventListener('click', function () { select(r.id, true); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+      box.appendChild(b);
+    });
+  }
+  function select(id, focus) {
+    selected = id; drawPins(); renderDetail(); renderList();
+    if (focus && byId(id)) focusOn(byId(id));
+  }
+
+  /* ---------- tabs ---------- */
+  function tab(name) {
+    ['map', 'ask', 'review'].forEach(function (n) {
+      $('#tab-' + n).hidden = n !== name;
+      $('#t-' + n).setAttribute('aria-selected', n === name ? 'true' : 'false');
+    });
+    window.scrollTo(0, 0);
+    if (name === 'map' && map) { setTimeout(function () { map.resize(); }, 0); if (me && Date.now() - lastLoad > 20000) refresh(); }
+  }
+  document.querySelectorAll('.tabs button').forEach(function (b) { b.addEventListener('click', function () { tab(b.dataset.tab); }); });
+
+  /* ---------- vraag de AI (voor nu: trefwoorden) ---------- */
+  var SYN = { Spaans: ['tapas', 'spanje'], Italiaans: ['pasta', 'pizza'], Japans: ['sushi', 'ramen'], Grieks: ['gyros'], Nederlands: ['hollands'], Wereldkeuken: ['buffet'], Mediterraan: ['middellandse'] };
+  var EXAMPLES = [
+    'Ik wil graag Spaans eten volgende week. Lage prijsklasse, maar wel veel sfeer. Maximaal 45 minuten rijden.',
+    'Italiaans, goedkoop, max 30 minuten',
+    'Iets bijzonders, duur mag, Frans of Japans, binnen 40 minuten'
+  ];
+  function parse(text) {
+    var t = norm(text), q = { cuisines: [], price: null, sfeer: false, min: null };
+    Object.keys(CUISINES).forEach(function (k) {
+      var words = [norm(k)].concat(SYN[k] || []);
+      if (words.some(function (w) { return t.indexOf(w) > -1; })) q.cuisines.push(k);
+    });
+    R.forEach(function (r) { if (r.cuisine && !CUISINES[r.cuisine] && t.indexOf(norm(r.cuisine)) > -1 && q.cuisines.indexOf(r.cuisine) < 0) q.cuisines.push(r.cuisine); });
+    if (/(lage prijs|laag|goedkoop|budget|betaalbaar|niet duur)/.test(t)) q.price = 1;
+    else if (/(middelmatig|gemiddeld|middenklasse)/.test(t)) q.price = 2;
+    else if (/(duur mag|luxe|chique|bijzonder|hoge prijs)/.test(t)) q.price = 3;
+    if (/(sfeer|gezellig|knus)/.test(t)) q.sfeer = true;
+    var m = t.match(/(\d+) (min|minuten)/);
+    if (m) q.min = parseInt(m[1], 10);
+    return q;
+  }
+  function ask() {
+    var q = parse($('#q').value), out = $('#answer'), parts = [];
+    out.hidden = false;
+    if (!R.length) { out.innerHTML = '<p>Er staan nog geen restaurants in de app. Schrijf eerst een review, dan kan ik zoeken.</p>'; return; }
+    if (q.cuisines.length) parts.push(q.cuisines.join(' of '));
+    if (q.price) parts.push(q.price === 1 ? 'lage prijsklasse' : q.price === 2 ? 'middenklasse' : 'prijs maakt niet uit');
+    if (q.sfeer) parts.push('veel sfeer');
+    if (q.min) parts.push('max. ' + q.min + ' min rijden');
+    if (!parts.length) { out.innerHTML = '<p>Ik herkende geen voorkeuren. Probeer bijvoorbeeld: Italiaans, goedkoop, max 30 minuten.</p>'; return; }
+    var ok = [], near = [];
+    R.forEach(function (r) {
+      var fail = [];
+      if (q.cuisines.length && !q.cuisines.some(function (c) { return r.cuisine === c || (CUISINES[c] && r.flags.indexOf(CUISINES[c][0]) > -1); })) fail.push('cuisine');
+      if (q.price && q.price < 3 && r.price > q.price) fail.push('price');
+      if (q.sfeer && r.sfeer < 4) fail.push('sfeer');
+      if (q.min && r.min > q.min) fail.push('min');
+      if (!fail.length) ok.push(r);
+      else if (fail.length === 1 && fail[0] === 'min' && r.min <= q.min + 10) near.push(r);
+    });
+    ok.sort(function (a, b) { return avg(b) - avg(a); });
+    var html = '<p class="interp">Ik zoek: <b>' + esc(parts.join(' · ')) + '</b></p>';
+    if (!ok.length) html += '<p>Geen restaurant voldoet aan alles. Probeer een hogere prijsklasse of meer minuten.</p>';
+    ok.forEach(function (r) {
+      var last = r.reviews[r.reviews.length - 1];
+      html += '<div class="res"><div class="head"><b>' + esc(r.name) + '</b><span class="badge l' + level(avg(r)) + '">' + fmt(avg(r)) + '</span></div>' +
+        '<p class="interp">' + esc(r.cuisine) + ' · ' + eur(r.price) + ' · sfeer ' + r.sfeer + ' van 5 · ca. ' + r.min + ' min rijden · ' + esc(r.city) + '</p>' +
+        (last && last.text ? '<p class="quote">' + esc(last.who) + ' zegt: ' + esc(last.text) + '</p>' : '') +
+        linksHtml(r, '<button class="btn ghost small" type="button" data-open="' + esc(r.id) + '">Toon op kaart</button>') + '</div>';
+    });
+    near.forEach(function (r) {
+      html += '<div class="near"><span><b>' + esc(r.name) + '</b> (' + esc(r.city) + ', cijfer ' + fmt(avg(r)) + ') zit net buiten je grens: ca. ' + r.min + ' min rijden.</span>' + linksHtml(r, '<button class="btn ghost small" type="button" data-open="' + esc(r.id) + '">Toon op kaart</button>') + '</div>';
+    });
+    out.innerHTML = html;
+    out.querySelectorAll('[data-open]').forEach(function (b) { b.addEventListener('click', function () { select(b.dataset.open, true); tab('map'); }); });
+  }
+  EXAMPLES.forEach(function (e) {
+    var b = document.createElement('button'); b.type = 'button'; b.textContent = e.length > 46 ? e.slice(0, 44) + '…' : e;
+    b.addEventListener('click', function () { $('#q').value = e; ask(); });
+    $('#examples').appendChild(b);
+  });
+  $('#askbtn').addEventListener('click', ask);
+
+  /* ---------- restaurants zoeken op de kaart (OpenStreetMap Nominatim) ---------- */
+  var nomChain = Promise.resolve(), nomLast = 0;
+  function fetchNom(params) {
+    var u = new URL('https://nominatim.openstreetmap.org/search');
+    Object.keys(params).forEach(function (k) { if (params[k] !== undefined && params[k] !== '') u.searchParams.set(k, params[k]); });
+    u.searchParams.set('format', 'jsonv2');
+    u.searchParams.set('accept-language', 'nl');
+    return fetch(u.toString()).then(function (r) { if (!r.ok) throw new Error('Zoekdienst gaf fout ' + r.status); return r.json(); });
+  }
+  function nom(params) {
+    var p = nomChain.then(function () {
+      var w = Math.max(0, 1100 - (Date.now() - nomLast));
+      return new Promise(function (res) { setTimeout(res, w); });
+    }).then(function () { nomLast = Date.now(); return fetchNom(params); });
+    nomChain = p.catch(function () {});
+    return p;
+  }
+  var FOOD = ['restaurant', 'fast_food', 'cafe', 'bar', 'pub', 'food_court', 'ice_cream', 'biergarten'];
+  function placeOf(a) { return a.city || a.town || a.village || a.municipality || a.hamlet || a.suburb || ''; }
+  function toCand(row) {
+    var a = row.address || {}, tg = row.extratags || {};
+    var nm = (row.namedetails && row.namedetails.name) || row.name || String(row.display_name || '').split(',')[0];
+    var cu = cuisineFromTags(tg.cuisine), lon = parseFloat(row.lon), lat = parseFloat(row.lat);
+    return { kind: 'osm', name: nm, city: placeOf(a), street: a.road ? a.road + (a.house_number ? ' ' + a.house_number : '') : '', lon: lon, lat: lat, cuisine: cu, flags: flagsFor(cu),
+      site: cleanUrl(tg.website || tg['contact:website']), menu: cleanUrl(tg['website:menu'] || tg['contact:menu']), d: km(lon, lat) };
+  }
+  function searchOnline() {
+    var q = $('#rv-search').value.trim();
+    if (norm(q).length < 2 || searching) return;
+    searching = true; searchMsg = ''; online = []; renderSugg();
+    var vb = [HOME[0] - 0.8, HOME[1] + 0.5, HOME[0] + 0.8, HOME[1] - 0.5].join(',');
+    nom({ q: q, countrycodes: 'nl', limit: 20, addressdetails: 1, extratags: 1, namedetails: 1, viewbox: vb, bounded: 0 }).then(function (rows) {
+      online = rows.filter(function (r) { return r.category === 'amenity' && FOOD.indexOf(r.type) > -1; }).map(toCand).filter(function (c) {
+        return !R.some(function (r) { return norm(r.name) === norm(c.name) && dist(r.lon, r.lat, c.lon, c.lat) < 0.3; });
+      });
+      online.sort(function (a, b) { return a.d - b.d; });
+      online = online.slice(0, 8);
+      searchMsg = online.length ? '' : 'Niets gevonden op de kaart met deze naam.';
+    }).catch(function (e) {
+      searchMsg = 'Zoeken op de kaart lukt nu niet (' + niceErr(e) + '). Je kunt het restaurant ook zelf toevoegen.';
+    }).then(function () { searching = false; renderSugg(); });
+  }
+  function geocode(city, street) {
+    var p = { city: city, countrycodes: 'nl', limit: 1, addressdetails: 1 };
+    if (street) p.street = street;
+    return nom(p).then(function (rows) {
+      if (rows.length) { var a = rows[0].address || {}; return { lon: parseFloat(rows[0].lon), lat: parseFloat(rows[0].lat), city: placeOf(a) || city, street: street && a.road ? a.road : '' }; }
+      if (street) return geocode(city, '');
+      return null;
+    });
+  }
+
+  /* ---------- review schrijven ---------- */
+  function showErr(t) { var e = $('#rv-err'); e.textContent = t; e.hidden = !t; }
+  function localMatches(q) {
+    var nq = norm(q), out = [];
+    if (nq.length < 2) return out;
+    R.forEach(function (r) {
+      if (norm(r.name).indexOf(nq) > -1) out.push({ kind: 'existing', id: r.id, name: r.name, city: r.city, street: r.street, flags: r.flags, d: km(r.lon, r.lat) });
+    });
+    out.sort(function (a, b) { return a.d - b.d; });
+    return out.slice(0, 6);
+  }
+  function renderSugg() {
+    var box = $('#rv-sugg'), q = $('#rv-search').value;
+    if (chosen || norm(q).length < 2 || !$('#rv-nf').hidden) { box.hidden = true; box.innerHTML = ''; $('#rv-search').setAttribute('aria-expanded', 'false'); return; }
+    found = localMatches(q).concat(online);
+    var h = found.map(function (c, i) {
+      var where = (c.street ? esc(c.street) + ', ' : '') + (c.city ? esc(c.city) : 'plaats onbekend') + ' · ca. ' + Math.round(c.d) + ' km';
+      return '<button type="button" class="sg" role="option" data-i="' + i + '"><span class="fl">' + flagRow(c.flags) + '</span><span class="tx"><b>' + esc(c.name) + '</b><span>' + where + '</span></span>' + (c.kind === 'existing' ? '<span class="tag">Staat al op de kaart</span>' : '') + '</button>';
+    }).join('');
+    if (searching) h += '<p class="sgmsg">Zoeken op de kaart…</p>';
+    else if (searchMsg) h += '<p class="sgmsg">' + esc(searchMsg) + '</p>';
+    else if (!found.length) h += '<p class="sgmsg">Tik op Zoek om op de kaart te zoeken.</p>';
+    h += '<button type="button" class="sg none" id="sg-add">Staat het er niet bij? Voeg het zelf toe</button>';
+    box.innerHTML = h; box.hidden = false;
+    $('#rv-search').setAttribute('aria-expanded', 'true');
+    box.querySelectorAll('[data-i]').forEach(function (b) { b.addEventListener('click', function () { pick(found[parseInt(b.dataset.i, 10)]); }); });
+    $('#sg-add').addEventListener('click', openNotFound);
+  }
+  function renderChosen() {
+    var box = $('#rv-chosen');
+    if (!chosen) { box.hidden = true; box.innerHTML = ''; return; }
+    var where = (chosen.street ? esc(chosen.street) + ', ' : '') + esc(chosen.city || 'plaats onbekend') + ' · ca. ' + Math.round(chosen.d) + ' km van Oud-Beijerland';
+    var h = '<div class="ch-top"><div><b>' + esc(chosen.name) + '</b><p class="small-note">' + where + '</p></div>' + (chosen.kind === 'existing' ? '<span class="tag">Staat al op de kaart</span>' : '<span class="tag new">Nieuw restaurant</span>') + '</div>';
+    if (chosen.kind === 'new') {
+      var extra = Object.keys(CUISINES).filter(function (k) { return CORE.indexOf(k) < 0; }).sort();
+      var opts = '<option value="">Kies keuken</option>' + CORE.concat(extra).map(function (k) { return '<option' + (k === chosen.cuisine ? ' selected' : '') + '>' + k + '</option>'; }).join('') + '<option value="__anders">Anders…</option>';
+      h += '<p class="small-note">' + (chosen.auto ? 'Plek en adres komen van de kaart.' : 'De pin komt op de gevonden plek.') + ' Controleer de rest even.</p>' +
+        '<div class="newfields"><label for="rv-keuken">Keuken<select id="rv-keuken">' + opts + '</select></label>' +
+        '<label for="rv-prijs">Prijs<select id="rv-prijs"><option value="1">€</option><option value="2" selected>€€</option><option value="3">€€€</option></select></label>' +
+        '<label for="rv-sfeer">Sfeer<select id="rv-sfeer"><option value="1">1 van 5</option><option value="2">2 van 5</option><option value="3" selected>3 van 5</option><option value="4">4 van 5</option><option value="5">5 van 5</option></select></label></div>' +
+        '<label for="rv-keuken-anders" id="rv-ka-wrap" hidden>Welke keuken?<input type="text" id="rv-keuken-anders" maxlength="30" placeholder="Bijvoorbeeld Thais"></label>';
+    }
+    h += '<button type="button" class="btn ghost small" id="rv-change" style="align-self:flex-start">Ander restaurant kiezen</button>';
+    box.innerHTML = h; box.hidden = false;
+    var ks = $('#rv-keuken');
+    if (ks) ks.addEventListener('change', function () { var an = ks.value === '__anders'; $('#rv-ka-wrap').hidden = !an; if (an) $('#rv-keuken-anders').focus(); });
+    $('#rv-change').addEventListener('click', function () { chosen = null; $('#rv-search').value = ''; online = []; searchMsg = ''; showErr(''); renderChosen(); renderSugg(); $('#rv-search').focus(); });
+  }
+  function pick(c) {
+    $('#rv-nf').hidden = true; showErr('');
+    if (c.kind === 'existing') chosen = { kind: 'existing', id: c.id, name: c.name, city: c.city, street: c.street, d: c.d };
+    else chosen = { kind: 'new', name: c.name, city: c.city, street: c.street, lon: c.lon, lat: c.lat, cuisine: c.cuisine, site: c.site, menu: c.menu, d: c.d, auto: true };
+    $('#rv-search').value = c.name;
+    renderSugg(); renderChosen();
+  }
+  function chooseExisting(id) {
+    var r = byId(id);
+    if (r) pick({ kind: 'existing', id: r.id, name: r.name, city: r.city, street: r.street, d: km(r.lon, r.lat) });
+  }
+  function openNotFound() {
+    if ($('#rv-search').value.trim().length < 2) { showErr('Typ eerst de naam van het restaurant.'); return; }
+    showErr(''); $('#rv-nf').hidden = false; renderSugg(); $('#nf-city').focus();
+  }
+  $('#rv-search').addEventListener('input', function () { chosen = null; online = []; searchMsg = ''; renderChosen(); showErr(''); $('#rv-nf').hidden = true; renderSugg(); });
+  $('#rv-search').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); searchOnline(); } });
+  $('#rv-go').addEventListener('click', searchOnline);
+  $('#nf-go').addEventListener('click', function () {
+    var nm = $('#rv-search').value.trim(), city = $('#nf-city').value.trim(), street = $('#nf-street').value.trim(), msg = $('#nf-msg'), btn = $('#nf-go');
+    if (nm.length < 2) { msg.textContent = 'Vul bovenaan eerst de naam van het restaurant in.'; return; }
+    if (!city) { msg.textContent = 'Vul de plaats in. Zonder plaats kunnen we de plek niet vinden.'; return; }
+    btn.disabled = true; msg.textContent = 'Plek zoeken…';
+    geocode(city, street).then(function (g) {
+      if (!g) { msg.textContent = 'Die plaats kennen we niet. Controleer de spelling en probeer het opnieuw.'; return; }
+      chosen = { kind: 'new', name: nm, city: g.city, street: g.street || street, lon: g.lon, lat: g.lat, cuisine: '', site: '', menu: '', d: km(g.lon, g.lat) };
+      msg.textContent = ''; $('#rv-nf').hidden = true; renderChosen(); renderSugg();
+    }).catch(function (e) { msg.textContent = 'Zoeken lukt nu niet (' + niceErr(e) + ').'; })
+      .then(function () { btn.disabled = false; });
+  });
+  Object.keys(CUISINES).length; // bewaar volgorde
+  $('#rv-score').addEventListener('input', function () { $('#rv-out').textContent = fmt(parseFloat(this.value)); });
+
+  function shrink(file) {
+    return new Promise(function (res) {
+      var fr = new FileReader();
+      fr.onload = function () {
+        var im = new Image();
+        im.onload = function () {
+          var s = Math.min(1, 1280 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+          c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
+          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+          c.toBlob(function (b) { res(b ? { blob: b, url: URL.createObjectURL(b) } : null); }, 'image/jpeg', 0.78);
+        };
+        im.onerror = function () { res(null); };
+        im.src = fr.result;
+      };
+      fr.onerror = function () { res(null); };
+      fr.readAsDataURL(file);
+    });
+  }
+  $('#rv-photo').addEventListener('change', function () {
+    var files = Array.prototype.slice.call(this.files, 0, 10);
+    Promise.all(files.map(shrink)).then(function (list) {
+      pending = list.filter(Boolean);
+      $('#previews').innerHTML = pending.map(function (p) { return '<figure class="tile own"><img src="' + p.url + '" alt="Voorbeeld van je foto"><figcaption>Bij review</figcaption></figure>'; }).join('');
+    });
+  });
+
+  function insertRest(row) {
+    return sb.from('restaurants').insert(row).select('id').single().then(function (res) {
+      if (res.error && /straat/i.test(res.error.message || '')) { delete row.straat; return sb.from('restaurants').insert(row).select('id').single(); }
+      return res;
+    }).then(function (res) { if (res.error) throw res.error; return res.data.id; });
+  }
+  function uploadPhotos(reviewId) {
+    if (!pending.length) return Promise.resolve(0);
+    var jobs = pending.slice(0, 10).map(function (p, i) {
+      var path = me.id + '/' + reviewId + '-' + (i + 1) + '.jpg';
+      return sb.storage.from(BUCKET).upload(path, p.blob, { contentType: 'image/jpeg', upsert: false }).then(function (res) { return res.error ? null : path; }).catch(function () { return null; });
+    });
+    return Promise.all(jobs).then(function (paths) {
+      var ok = paths.filter(Boolean), failed = jobs.length - ok.length;
+      if (!ok.length) return failed;
+      return sb.from('review_fotos').insert(ok.map(function (p) { return { review_id: reviewId, pad: p }; })).then(function (res) { return res.error ? jobs.length : failed; });
+    });
+  }
+  function setBusy(on) {
+    busy = on;
+    var b = $('#form button[type=submit]');
+    b.disabled = on; b.textContent = on ? 'Opslaan…' : 'Review opslaan';
+  }
+  $('#form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (busy) return;
+    if (!chosen) { showErr('Kies eerst een restaurant uit de lijst, of voeg het zelf toe.'); $('#rv-search').focus(); return; }
+    var restPromise, isNew = false;
+    if (chosen.kind === 'existing') { restPromise = Promise.resolve(chosen.id); }
+    else {
+      var kz = $('#rv-keuken').value;
+      if (!kz) { showErr('Kies de keuken van het restaurant.'); $('#rv-keuken').focus(); return; }
+      if (kz === '__anders') {
+        kz = $('#rv-keuken-anders').value.trim();
+        if (!kz) { showErr('Vul in welke keuken het is.'); $('#rv-keuken-anders').focus(); return; }
+        kz = canonCuisine(kz) || (kz.charAt(0).toUpperCase() + kz.slice(1));
+      }
+      isNew = true;
+      restPromise = Promise.resolve().then(function () {
+        return insertRest({ naam: chosen.name, stad: chosen.city || null, straat: chosen.street || null, keuken: kz, landen: flagsFor(kz), prijs: parseInt($('#rv-prijs').value, 10), sfeer: parseInt($('#rv-sfeer').value, 10),
+          lat: chosen.lat, lon: chosen.lon, website: chosen.site || null, menu_url: chosen.menu || null });
+      });
+    }
+    setBusy(true); showErr('');
+    var rid, failedPhotos = 0;
+    restPromise.then(function (id) {
+      rid = id;
+      return sb.from('reviews').insert({ restaurant_id: id, cijfer: parseFloat($('#rv-score').value), tekst: $('#rv-text').value.trim() || null }).select('id').single();
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      return uploadPhotos(res.data.id);
+    }).then(function (failed) {
+      failedPhotos = failed || 0;
+      pending = []; $('#previews').innerHTML = ''; $('#rv-text').value = ''; $('#rv-photo').value = '';
+      chosen = null; online = []; searchMsg = ''; $('#rv-search').value = ''; renderChosen(); renderSugg();
+      return refresh();
+    }).then(function () {
+      select(rid, true); tab('map');
+      toast(failedPhotos ? 'Review opgeslagen, maar ' + failedPhotos + ' foto' + (failedPhotos === 1 ? '' : '\'s') + ' lukte niet' : isNew ? 'Review opgeslagen en restaurant toegevoegd' : 'Review opgeslagen');
+    }).catch(function (err) {
+      showErr('Opslaan mislukt: ' + niceErr(err));
+    }).then(function () { setBusy(false); });
+  });
+
+  $('#flagkey').innerHTML = '<span>' + flagSvg('ES') + 'land van de keuken</span><span>' + flagSvg('ES') + flagSvg('IT') + 'mix van keukens</span><span>' + flagSvg('EU') + 'Europees</span><span>' + flagSvg('WORLD') + 'veel verschillende keukens</span>';
+  boot();
+})();
+
+</script>
+</body>
+</html>

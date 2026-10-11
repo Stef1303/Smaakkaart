@@ -1,0 +1,11 @@
+SMAAKKAART - app voor GitHub Pages
+
+1. Maak op github.com een nieuwe PUBLIEKE repository met de naam smaakkaart.
+2. Kies "uploading an existing file" en sleep de INHOUD van deze map erin:
+   index.html en de map lib (met alles erin). Klik op Commit changes.
+3. Ga naar Settings > Pages. Kies bij Source: Deploy from a branch, Branch: main, map: / (root). Save.
+4. Na 1 a 2 minuten staat je app op https://JOUWNAAM.github.io/smaakkaart/
+   Stuur die link naar je vrienden. Ze vullen alleen hun naam in.
+
+In Supabase moet "Allow anonymous sign-ins" aanstaan
+(Authentication > Sign In / Providers).
