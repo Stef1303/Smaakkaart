@@ -199,6 +199,8 @@ h1.brand { margin:0; line-height:0; }
 .editform { display:flex; flex-direction:column; gap:8px; }
 .editform .tile.gone img { opacity:.35; }
 .photobtn { font-size:12px; font-weight:700; padding:4px 8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--web); cursor:pointer; align-self:flex-start; }
+.who button.hot { background:var(--accent); color:var(--accent-fg); border-color:var(--accent); }
+input[type=email] { width:100%; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
 .searchrow { display:flex; gap:8px; }
 .searchrow input { flex:1; min-width:0; }
 .searchrow .btn { flex:none; }
@@ -220,15 +222,47 @@ h1.brand { margin:0; line-height:0; }
 
   <section id="gate" class="card" hidden>
     <h2>Welkom bij Smaakkaart</h2>
-    <p class="tagline">Eten dat jij en je vrienden goed vinden. Vul alleen je naam in, dan kun je meteen beginnen.</p>
-    <form id="gateform" class="field" autocomplete="off">
+    <p class="tagline">Eten dat jij en je vrienden goed vinden. Log in met je e-mailadres. Je krijgt een code, een wachtwoord is niet nodig.</p>
+    <form id="gateform" class="field" autocomplete="on">
       <label for="gate-name">Jouw naam
-        <input type="text" id="gate-name" placeholder="Bijvoorbeeld Stef" maxlength="30" required>
+        <input type="text" id="gate-name" placeholder="Bijvoorbeeld Stef" maxlength="30" autocomplete="given-name">
       </label>
-      <button class="btn" id="gate-btn" type="submit">Verder</button>
+      <label for="gate-email">E-mailadres
+        <input type="email" id="gate-email" placeholder="naam@voorbeeld.nl" maxlength="80" autocomplete="email" inputmode="email">
+      </label>
+      <button class="btn" id="gate-btn" type="submit">Stuur mij een code</button>
       <p class="errtxt" id="gate-err" role="alert" hidden></p>
     </form>
-    <p class="small-note">Geen e-mail of wachtwoord nodig. Op een ander apparaat of na het wissen van je browser begin je opnieuw met een nieuwe naam.</p>
+    <form id="codeform" class="field" hidden autocomplete="one-time-code">
+      <p>We hebben een code gestuurd naar <b id="gate-sent"></b>. Kijk ook in je spam.</p>
+      <label for="gate-code">Code uit de mail
+        <input type="text" id="gate-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456">
+      </label>
+      <button class="btn" id="code-btn" type="submit">Inloggen</button>
+      <p class="errtxt" id="code-err" role="alert" hidden></p>
+      <div class="revbtns"><button type="button" class="btn ghost small" id="code-again">Stuur opnieuw</button><button type="button" class="btn ghost small" id="code-back">Ander e-mailadres</button></div>
+    </form>
+    <p class="small-note">Ben je nieuw, dan maakt het inloggen meteen een account voor je aan.</p>
+  </section>
+
+  <section id="linkcard" class="card" hidden>
+    <h2>Koppel je e-mailadres</h2>
+    <p class="small-note">Dan blijven je reviews van jou en kun je ook op een ander apparaat inloggen.</p>
+    <form id="link-form" class="field" autocomplete="on">
+      <label for="link-email">E-mailadres
+        <input type="email" id="link-email" placeholder="naam@voorbeeld.nl" maxlength="80" autocomplete="email" inputmode="email">
+      </label>
+      <button class="btn" id="link-btn" type="submit">Stuur mij een code</button>
+    </form>
+    <form id="link-verify" class="field" hidden>
+      <p>Code verstuurd naar <b id="link-sent"></b>.</p>
+      <label for="link-code">Code uit de mail
+        <input type="text" id="link-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456">
+      </label>
+      <button class="btn" id="link-ok" type="submit">Koppelen</button>
+    </form>
+    <p class="errtxt" id="link-err" role="alert" hidden></p>
+    <button type="button" class="btn ghost small" id="link-cancel" style="align-self:flex-start">Later</button>
   </section>
 
   <div id="main" hidden>
@@ -482,13 +516,25 @@ h1.brand { margin:0; line-height:0; }
     });
   }
 
-  /* ---------- inloggen met alleen een naam ---------- */
+  /* ---------- inloggen met e-mail en code ---------- */
+  var gateEmail = '', lastSend = 0, linkEmail = '';
   function lock(on) {
     $('#gate').hidden = !on;
     $('#main').hidden = on;
     $('#nav').hidden = on;
     $('#who').hidden = on;
+    if (on) { $('#linkcard').hidden = true; gateStep(1); }
   }
+  function authErr(e) {
+    var m = niceErr(e);
+    if (/rate limit|only request this after|too many|over_email_send|over_request/i.test(m)) return 'Even geduld: je kunt pas over ongeveer een minuut weer een code aanvragen.';
+    if (/token has expired|invalid|otp_expired/i.test(m)) return 'Die code klopt niet of is verlopen. Controleer hem of vraag een nieuwe aan.';
+    if (/signups? not allowed/i.test(m)) return 'Nieuwe accounts aanmaken staat uit in Supabase (Authentication, Sign In / Providers, "Allow new users to sign up").';
+    if (/error sending|smtp|sending .*email|unexpected_failure/i.test(m)) return 'De mail kon niet worden verstuurd. Controleer de mail-instellingen (SMTP) in Supabase.';
+    if (/not authorized|not part of the project/i.test(m)) return 'Dit e-mailadres mag nog geen mail ontvangen. Zet de eigen mailserver (SMTP) in Supabase aan.';
+    return m;
+  }
+  function validEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e); }
   function showWho(edit) {
     var w = $('#who');
     if (!me) { w.innerHTML = ''; return; }
@@ -498,8 +544,13 @@ h1.brand { margin:0; line-height:0; }
       $('#who-save').addEventListener('click', saveName);
       $('#who-in').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); saveName(); } });
     } else {
-      w.innerHTML = '<span>Jij: <b>' + esc(me.naam) + '</b></span><button type="button" id="who-edit">Wijzig naam</button>';
+      w.innerHTML = '<span>Jij: <b>' + esc(me.naam) + '</b></span><button type="button" id="who-edit">Naam</button>' +
+        (me.anon ? '<button type="button" id="who-link" class="hot">Koppel e-mail</button>' : '<button type="button" id="who-out">Uitloggen</button>');
       $('#who-edit').addEventListener('click', function () { showWho(true); });
+      if (me.anon) $('#who-link').addEventListener('click', openLink);
+      else $('#who-out').addEventListener('click', function () {
+        sb.auth.signOut().then(function () { me = null; R = []; selected = null; showWho(false); lock(true); });
+      });
     }
   }
   function saveName() {
@@ -512,7 +563,7 @@ h1.brand { margin:0; line-height:0; }
   }
   function afterLogin(user) {
     return sb.from('profiles').select('naam').eq('id', user.id).maybeSingle().then(function (res) {
-      me = { id: user.id, naam: (res && res.data && res.data.naam) || 'Gast' };
+      me = { id: user.id, naam: (res && res.data && res.data.naam) || 'Gast', anon: !!user.is_anonymous, email: user.email || '' };
       lock(false); showWho(false); tab('map');
       if (!map) initMap();
       setStatus('Laden…');
@@ -520,28 +571,72 @@ h1.brand { margin:0; line-height:0; }
     });
   }
   function gateErr(t) { var e = $('#gate-err'); e.textContent = t; e.hidden = !t; }
+  function codeErr(t) { var e = $('#code-err'); e.textContent = t; e.hidden = !t; }
+  function gateStep(n) {
+    $('#gateform').hidden = n !== 1;
+    $('#codeform').hidden = n !== 2;
+    gateErr(''); codeErr('');
+    if (n === 2) { $('#gate-sent').textContent = gateEmail; $('#gate-code').value = ''; $('#gate-code').focus(); }
+  }
+  function sendCode() {
+    var nm = $('#gate-name').value.trim(), em = $('#gate-email').value.trim().toLowerCase();
+    if (!nm) { gateErr('Vul je naam in.'); return Promise.resolve(); }
+    if (!validEmail(em)) { gateErr('Vul een geldig e-mailadres in.'); return Promise.resolve(); }
+    gateErr(''); $('#gate-btn').disabled = true;
+    return sb.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true, data: { naam: nm } } }).then(function (res) {
+      if (res.error) throw res.error;
+      gateEmail = em; lastSend = Date.now(); gateStep(2);
+    }).catch(function (err) { gateErr(authErr(err)); }).then(function () { $('#gate-btn').disabled = false; });
+  }
   function boot() {
     if (typeof supabase === 'undefined' || !supabase.createClient) { lock(true); gateErr('De verbinding met de database kon niet worden geladen. Ververs de pagina.'); return; }
     sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    $('#gateform').addEventListener('submit', function (e) {
+    $('#gateform').addEventListener('submit', function (e) { e.preventDefault(); sendCode(); });
+    $('#codeform').addEventListener('submit', function (e) {
       e.preventDefault();
-      var nm = $('#gate-name').value.trim();
-      if (!nm) { gateErr('Vul je naam in.'); return; }
-      gateErr(''); $('#gate-btn').disabled = true;
-      sb.auth.signInAnonymously({ options: { data: { naam: nm } } }).then(function (res) {
-        if (res.error) { throw res.error; }
+      var tk = $('#gate-code').value.replace(/\s+/g, '');
+      if (tk.length < 6) { codeErr('Vul de code uit de mail in.'); return; }
+      codeErr(''); $('#code-btn').disabled = true;
+      sb.auth.verifyOtp({ email: gateEmail, token: tk, type: 'email' }).then(function (res) {
+        if (res.error) throw res.error;
         return afterLogin(res.data.user);
-      }).catch(function (err) {
-        var m = niceErr(err);
-        if (/anonymous/i.test(m)) m = 'Anoniem inloggen staat nog uit. Zet in Supabase onder Authentication, Sign In / Providers, de schakelaar "Allow anonymous sign-ins" aan.';
-        gateErr('Inloggen lukt niet: ' + m);
-      }).then(function () { $('#gate-btn').disabled = false; });
+      }).catch(function (err) { codeErr(authErr(err)); }).then(function () { $('#code-btn').disabled = false; });
     });
+    $('#code-back').addEventListener('click', function () { gateStep(1); });
+    $('#code-again').addEventListener('click', function () {
+      var wait = 60 - Math.floor((Date.now() - lastSend) / 1000);
+      if (wait > 0) { codeErr('Wacht nog ' + wait + ' seconden voordat je een nieuwe code aanvraagt.'); return; }
+      $('#gate-email').value = gateEmail; sendCode().then(function () { if (!$('#codeform').hidden) toast('Nieuwe code verstuurd'); });
+    });
+    $('#link-form').addEventListener('submit', function (e) { e.preventDefault(); linkSend(); });
+    $('#link-verify').addEventListener('submit', function (e) { e.preventDefault(); linkConfirm(); });
+    $('#link-cancel').addEventListener('click', function () { $('#linkcard').hidden = true; });
     sb.auth.getSession().then(function (r) {
       if (r && r.data && r.data.session) return afterLogin(r.data.session.user);
       lock(true);
     }).catch(function () { lock(true); });
     document.addEventListener('visibilitychange', function () { if (!document.hidden && me && Date.now() - lastLoad > 20000) refresh(); });
+  }
+  /* bestaand naam-account koppelen aan een e-mailadres, zodat je reviews blijven */
+  function openLink() { $('#linkcard').hidden = false; $('#link-form').hidden = false; $('#link-verify').hidden = true; $('#link-err').hidden = true; $('#link-email').focus(); window.scrollTo(0, 0); }
+  function linkErr(t) { var e = $('#link-err'); e.textContent = t; e.hidden = !t; }
+  function linkSend() {
+    var em = $('#link-email').value.trim().toLowerCase();
+    if (!validEmail(em)) { linkErr('Vul een geldig e-mailadres in.'); return; }
+    linkErr(''); $('#link-btn').disabled = true;
+    sb.auth.updateUser({ email: em }).then(function (res) {
+      if (res.error) throw res.error;
+      linkEmail = em; $('#link-form').hidden = true; $('#link-verify').hidden = false; $('#link-sent').textContent = em; $('#link-code').focus();
+    }).catch(function (err) { linkErr(authErr(err)); }).then(function () { $('#link-btn').disabled = false; });
+  }
+  function linkConfirm() {
+    var tk = $('#link-code').value.replace(/\s+/g, '');
+    if (tk.length < 6) { linkErr('Vul de code uit de mail in.'); return; }
+    linkErr(''); $('#link-ok').disabled = true;
+    sb.auth.verifyOtp({ email: linkEmail, token: tk, type: 'email_change' }).then(function (res) {
+      if (res.error) throw res.error;
+      me.anon = false; me.email = linkEmail; $('#linkcard').hidden = true; showWho(false); toast('E-mail gekoppeld. Je reviews blijven van jou.');
+    }).catch(function (err) { linkErr(authErr(err)); }).then(function () { $('#link-ok').disabled = false; });
   }
 
   /* ---------- kaart ---------- */
