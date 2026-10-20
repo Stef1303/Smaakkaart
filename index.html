@@ -194,6 +194,11 @@ h1.brand { margin:0; line-height:0; }
 .scorerow { display:flex; align-items:center; gap:8px; }
 .scorerow input { width:84px; text-align:center; font-weight:700; font-size:18px; }
 .scorerow .rangeout { display:none; }
+.revbtns { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-top:4px; }
+.editrev { background:none; border:0; color:var(--accent); font-size:13px; font-weight:700; cursor:pointer; padding:2px 0; }
+.editform { display:flex; flex-direction:column; gap:8px; }
+.editform .tile.gone img { opacity:.35; }
+.photobtn { font-size:12px; font-weight:700; padding:4px 8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--web); cursor:pointer; align-self:flex-start; }
 .searchrow { display:flex; gap:8px; }
 .searchrow input { flex:1; min-width:0; }
 .searchrow .btn { flex:none; }
@@ -417,6 +422,7 @@ h1.brand { margin:0; line-height:0; }
 
   /* ---------- toestand ---------- */
   var sb = null, me = null, R = [], selected = null, map = null, markers = [], fitted = false, lastLoad = 0;
+  var editing = null, editNew = [], editGone = {};
   var chosen = null, found = [], online = [], searching = false, searchMsg = '', pending = [], busy = false;
 
   function byId(id) { return R.filter(function (r) { return r.id === id; })[0]; }
@@ -443,7 +449,7 @@ h1.brand { margin:0; line-height:0; }
   function load() {
     return Promise.all([
       sb.from('restaurants').select('*'),
-      sb.from('reviews').select('id,restaurant_id,user_id,cijfer,tekst,created_at,profiles(naam),review_fotos(id,pad)').order('created_at', { ascending: true })
+      sb.from('reviews').select('id,restaurant_id,user_id,cijfer,tekst,created_at,bewerkt_op,profiles(naam),review_fotos(id,pad)').order('created_at', { ascending: true })
     ]).then(function (res) {
       if (res[0].error) throw res[0].error;
       if (res[1].error) throw res[1].error;
@@ -453,8 +459,8 @@ h1.brand { margin:0; line-height:0; }
         var r = by[v.restaurant_id];
         if (!r) return;
         var who = (v.profiles && v.profiles.naam) || 'Gast';
-        r.reviews.push({ id: v.id, uid: v.user_id, who: who, score: Number(v.cijfer), text: v.tekst || '', at: v.created_at,
-          photos: (v.review_fotos || []).map(function (f) { paths.push(f.pad); return { by: who, path: f.pad, data: '' }; }) });
+        r.reviews.push({ id: v.id, uid: v.user_id, who: who, score: Number(v.cijfer), text: v.tekst || '', at: v.created_at, edited: v.bewerkt_op || '',
+          photos: (v.review_fotos || []).map(function (f) { paths.push(f.pad); return { id: f.id, by: who, path: f.pad, data: '' }; }) });
       });
       return signed(paths).catch(function () { return {}; }).then(function (m) {
         rests.forEach(function (r) { r.reviews.forEach(function (v) { v.photos.forEach(function (p) { p.data = m[p.path] || ''; }); }); });
@@ -650,13 +656,107 @@ h1.brand { margin:0; line-height:0; }
       '<h3>Foto\'s</h3>' + (photos.length ? '<div class="photos">' + photos.map(tile).join('') + '</div>' : '<p class="small-note">Nog geen foto\'s. Voeg ze toe als je een review schrijft.</p>') +
       '<h3>Reviews van vrienden</h3>' +
       r.reviews.slice().reverse().map(function (v) {
-        return '<div class="review"><div class="top"><span>' + esc(v.who) + ' <span class="when">' + esc(when(v.at)) + '</span></span><span>' + fmt(v.score) + '</span></div>' + (v.text ? '<p>' + esc(v.text) + '</p>' : '') +
-          (me && v.uid === me.id ? '<button type="button" class="delrev" data-id="' + esc(v.id) + '">Verwijder mijn review</button>' : '') + '</div>';
+        var mine = me && v.uid === me.id;
+        if (mine && editing === v.id) return editorHtml(v);
+        var left = hoursLeft(v);
+        return '<div class="review"><div class="top"><span>' + esc(v.who) + ' <span class="when">' + esc(when(v.at)) + (v.edited ? ' · bewerkt' : '') + '</span></span><span>' + fmt(v.score) + '</span></div>' + (v.text ? '<p>' + esc(v.text) + '</p>' : '') +
+          (mine ? '<div class="revbtns">' + (left > 0 ? '<button type="button" class="editrev" data-id="' + esc(v.id) + '">Bewerk <span class="when">(nog ' + left + ' uur)</span></button>' : '') +
+            '<button type="button" class="delrev" data-id="' + esc(v.id) + '">Verwijder mijn review</button></div>' : '') + '</div>';
       }).join('') +
       '<button class="btn ghost small" type="button" id="goreview" style="align-self:flex-start">Review schrijven</button>';
     box.innerHTML = html;
     $('#goreview').addEventListener('click', function () { chooseExisting(r.id); tab('review'); });
     box.querySelectorAll('.delrev').forEach(function (b) { b.addEventListener('click', function () { delReview(r, b); }); });
+    box.querySelectorAll('.editrev').forEach(function (b) { b.addEventListener('click', function () { startEdit(b.dataset.id); }); });
+    var ef = box.querySelector('.editform');
+    if (ef) wireEditor(r, ef);
+  }
+  /* ---------- review bewerken (tot 48 uur na plaatsen) ---------- */
+  function hoursLeft(v) { return Math.max(0, Math.ceil((48 * 3600000 - (Date.now() - new Date(v.at).getTime())) / 3600000)); }
+  function fscore(n) { return n.toFixed(1).replace('.', ','); }
+  function editorHtml(v) {
+    var kept = v.photos.filter(function (p) { return !editGone[p.id]; });
+    var h = '<form class="review editform" data-id="' + esc(v.id) + '"><div class="top"><span>Review bewerken <span class="when">(nog ' + hoursLeft(v) + ' uur)</span></span></div>' +
+      '<label for="ed-num">Cijfer (per 0,1)</label><div class="scorerow"><button type="button" class="btn ghost small" id="ed-dn" aria-label="0,1 lager">−</button>' +
+      '<input type="text" inputmode="decimal" id="ed-num" maxlength="4" value="' + fscore(v.score) + '" aria-label="Cijfer"><button type="button" class="btn ghost small" id="ed-up" aria-label="0,1 hoger">+</button></div>' +
+      '<label for="ed-text">Wat vond je ervan?</label><textarea id="ed-text" maxlength="500">' + esc(v.text) + '</textarea>';
+    if (v.photos.length) {
+      h += '<h3>Je foto\'s</h3><div class="previews">' + v.photos.map(function (p) {
+        var gone = !!editGone[p.id];
+        return '<figure class="tile own' + (gone ? ' gone' : '') + '">' + (p.data ? '<img src="' + esc(p.data) + '" alt="Je foto">' : '<div class="ph nofoto">Foto laadt niet</div>') +
+          '<button type="button" class="photobtn" data-pid="' + esc(p.id) + '">' + (gone ? 'Toch houden' : 'Verwijder') + '</button></figure>';
+      }).join('') + '</div>';
+    }
+    h += '<label for="ed-photo">Foto\'s toevoegen (in totaal maximaal 10)</label><input type="file" id="ed-photo" accept="image/*" multiple>' +
+      '<div class="previews" id="ed-previews">' + editNew.map(function (p) { return '<figure class="tile own"><img src="' + p.url + '" alt="Nieuwe foto"><figcaption>Nieuw</figcaption></figure>'; }).join('') + '</div>' +
+      '<p class="errtxt" id="ed-err" role="alert" hidden></p>' +
+      '<div class="revbtns"><button type="submit" class="btn small" id="ed-save">Opslaan</button><button type="button" class="btn ghost small" id="ed-cancel">Annuleren</button></div></form>';
+    return h;
+  }
+  function startEdit(id) { editing = id; editNew = []; editGone = {}; renderDetail(); }
+  function stopEdit() { editing = null; editNew = []; editGone = {}; renderDetail(); }
+  function wireEditor(r, f) {
+    var v = r.reviews.filter(function (x) { return x.id === f.dataset.id; })[0];
+    if (!v) { stopEdit(); return; }
+    var num = f.querySelector('#ed-num'), err = f.querySelector('#ed-err');
+    function sc() { var x = parseFloat(String(num.value).replace(',', '.')); if (isNaN(x)) return null; return Math.min(10, Math.max(1, Math.round(x * 10) / 10)); }
+    function bump(d) { var x = sc(); if (x === null) x = v.score; x = Math.min(10, Math.max(1, Math.round((x + d) * 10) / 10)); num.value = fscore(x); }
+    function showE(t) { err.textContent = t; err.hidden = !t; }
+    f.querySelector('#ed-dn').addEventListener('click', function () { bump(-0.1); });
+    f.querySelector('#ed-up').addEventListener('click', function () { bump(0.1); });
+    num.addEventListener('blur', function () { var x = sc(); num.value = fscore(x === null ? v.score : x); });
+    f.querySelector('#ed-cancel').addEventListener('click', stopEdit);
+    function total() { return v.photos.filter(function (p) { return !editGone[p.id]; }).length + editNew.length; }
+    f.querySelectorAll('.photobtn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var keepText = f.querySelector('#ed-text').value, keepNum = num.value;
+        if (editGone[b.dataset.pid]) delete editGone[b.dataset.pid]; else editGone[b.dataset.pid] = true;
+        renderDetail();
+        var nf = $('#detail .editform'); if (nf) { nf.querySelector('#ed-text').value = keepText; nf.querySelector('#ed-num').value = keepNum; }
+      });
+    });
+    f.querySelector('#ed-photo').addEventListener('change', function () {
+      var room = 10 - (total() - editNew.length), files = Array.prototype.slice.call(this.files, 0, Math.max(0, room));
+      if (this.files.length > room) showE('Maximaal 10 foto\'s per review. Er zijn er ' + Math.max(0, room) + ' toegevoegd.');
+      Promise.all(files.map(shrink)).then(function (list) {
+        editNew = list.filter(Boolean);
+        f.querySelector('#ed-previews').innerHTML = editNew.map(function (p) { return '<figure class="tile own"><img src="' + p.url + '" alt="Nieuwe foto"><figcaption>Nieuw</figcaption></figure>'; }).join('');
+      });
+    });
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var score = sc(); if (score === null) { showE('Vul een cijfer tussen 1 en 10 in.'); return; }
+      var text = f.querySelector('#ed-text').value.trim(), btn = f.querySelector('#ed-save');
+      btn.disabled = true; btn.textContent = 'Opslaan…'; showE('');
+      var gone = v.photos.filter(function (p) { return editGone[p.id]; }), failed = 0;
+      sb.from('reviews').update({ cijfer: score, tekst: text || null }).eq('id', v.id).select('id').then(function (res) {
+        if (res.error) throw res.error;
+        if (!res.data || !res.data.length) throw new Error('Bewerken kan niet meer: de review is langer dan 48 uur geleden geplaatst.');
+        if (!gone.length) return null;
+        return sb.from('review_fotos').delete().in('id', gone.map(function (p) { return p.id; })).then(function (r2) {
+          if (r2.error) throw r2.error;
+          return sb.storage.from(BUCKET).remove(gone.map(function (p) { return p.path; })).catch(function () {});
+        });
+      }).then(function () {
+        if (!editNew.length) return 0;
+        var stamp = Date.now();
+        return Promise.all(editNew.map(function (p, i) {
+          var path = me.id + '/' + v.id + '-' + stamp + '-' + (i + 1) + '.jpg';
+          return sb.storage.from(BUCKET).upload(path, p.blob, { contentType: 'image/jpeg', upsert: false }).then(function (r3) { return r3.error ? null : path; }).catch(function () { return null; });
+        })).then(function (paths) {
+          var ok = paths.filter(Boolean); failed = paths.length - ok.length;
+          if (!ok.length) return failed;
+          return sb.from('review_fotos').insert(ok.map(function (pa) { return { review_id: v.id, pad: pa }; })).then(function (r4) { if (r4.error) failed = paths.length; });
+        });
+      }).then(function () {
+        editing = null; editNew = []; editGone = {};
+        return refresh();
+      }).then(function () {
+        toast(failed ? 'Review aangepast, maar ' + failed + ' foto' + (failed === 1 ? '' : '\'s') + ' lukte niet' : 'Review aangepast');
+      }).catch(function (e2) {
+        btn.disabled = false; btn.textContent = 'Opslaan'; showE('Opslaan mislukt: ' + niceErr(e2));
+      });
+    });
   }
   function delReview(r, btn) {
     if (btn.dataset.armed !== '1') {
