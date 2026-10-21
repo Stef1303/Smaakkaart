@@ -210,6 +210,10 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
 #pop[hidden] { display:none; }
 #pop .card { width:100%; max-width:420px; max-height:85vh; overflow:auto; }
 .whobtn { background:none; border:0; padding:0; font:inherit; font-weight:700; color:inherit; cursor:pointer; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px; }
+.zoom { display:flex; gap:6px; }
+#zfriends[aria-pressed=true] { background:var(--accent); color:var(--accent-fg); }
+.wpin { width:28px; height:28px; border-radius:50%; background:var(--surface); border:2px dashed var(--accent); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; }
+.badge { display:inline-block; min-width:18px; padding:0 5px; border-radius:9px; background:#d33; color:#fff; font-size:11px; line-height:18px; text-align:center; margin-left:4px; }
 .pav { width:84px; height:84px; border-radius:50%; overflow:hidden; background:var(--line); flex:none; display:flex; align-items:center; justify-content:center; }
 .pav img { width:100%; height:100%; object-fit:cover; }
 .prow { display:flex; gap:14px; align-items:center; }
@@ -297,7 +301,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
     <div class="stack">
       <div class="mapwrap">
         <div id="map" role="region" aria-label="Kaart met restaurants"></div>
-        <div class="zoom"><button type="button" id="zreset" class="small" aria-label="Alle restaurants in beeld">Alles</button></div>
+        <div class="zoom"><button type="button" id="zreset" class="small" aria-label="Alle restaurants in beeld">Alles</button><button type="button" id="zfriends" class="small" aria-pressed="false" hidden>Alleen vrienden</button></div>
         <div class="mapnote" id="mapnote" hidden>De kaart kon niet laden. Controleer je internetverbinding en ververs de pagina.</div>
         <div class="legend" aria-label="Legenda">
           <span><span class="sw l1"></span>onder 7,5</span>
@@ -401,6 +405,10 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       <p class="small-note">Je reviews zijn altijd zichtbaar voor iedereen, met alleen je naam erbij. Deze instelling bepaalt wie je woonplaats, bio, foto en favoriete keukens ziet.</p>
       <button class="btn" type="submit">Profiel opslaan</button>
     </form>
+    <div class="card" id="wl-card">
+      <h2>Wil ik nog proberen</h2>
+      <div id="wl-list"></div>
+    </div>
     <div class="card" id="friends">
       <h2>Vrienden</h2>
       <span class="searchrow"><input type="text" id="f-q" maxlength="30" placeholder="Zoek een vriend op naam"><button type="button" class="btn" id="f-go">Zoek</button></span>
@@ -560,8 +568,16 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       });
     });
   }
+  function setBadge(n) { var t = $('#t-profile'); if (t) t.innerHTML = 'Profiel' + (n ? ' <span class="badge">' + n + '</span>' : ''); }
+  function syncSocial() {
+    if (!me) { WL = []; FRIENDIDS = []; setBadge(0); return; }
+    return Promise.all([sb.from('vriendschappen').select('*'), sb.from('wishlist').select('*')]).then(function (res) {
+      if (!res[0].error) { FR = res[0].data || []; FRIENDIDS = FR.filter(function (f) { return f.status === 'ok'; }).map(other); setBadge(FR.filter(function (f) { return f.status === 'wacht' && f.naar === me.id; }).length); }
+      if (!res[1].error) WL = res[1].data || [];
+    }).catch(function () {});
+  }
   function refresh() {
-    return load().then(function () {
+    return load().then(syncSocial).then(function () {
       setStatus('');
       if (!selected || !byId(selected)) selected = R.length ? R.slice().sort(function (a, b) { return avg(b) - avg(a); })[0].id : null;
       drawPins(); renderDetail(); renderList();
@@ -659,7 +675,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
   /* wat een gast niet mag: geen reviews schrijven */
   function applyRole() {
     var g = !me;
-    $('#form').hidden = g; $('#guestnote').hidden = !g;
+    $('#form').hidden = g; $('#guestnote').hidden = !g; $('#zfriends').hidden = g;
   }
   function sendCode() {
     var reg = gateMode === 'register', nm = $('#gate-name').value.trim(), em = $('#gate-email').value.trim().toLowerCase();
@@ -744,9 +760,9 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
   }
   function fitAll(animate) {
     if (!map) return;
-    if (!R.length) { map.jumpTo({ center: HOME, zoom: 10 }); return; }
+    if (!V().length) { map.jumpTo({ center: HOME, zoom: 10 }); return; }
     var b = new maplibregl.LngLatBounds(HOME, HOME);
-    R.forEach(function (r) { b.extend([r.lon, r.lat]); });
+    V().forEach(function (r) { b.extend([r.lon, r.lat]); });
     map.fitBounds(b, { padding: { top: 70, bottom: 36, left: 36, right: 36 }, duration: (animate && !reduced()) ? 700 : 0, maxZoom: 11 });
   }
   function pinSvg(r, lv, s) {
@@ -755,11 +771,21 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       '<path class="body" d="M0 0C-5-8-13-13-13-22A13 13 0 1 1 13-22C13-13 5-8 0 0Z" fill="var(--p' + lv + ')"/>' +
       '<text y="-22" fill="var(--p' + lv + '-fg)">' + fmt(s) + '</text>' + pinFlags(r.flags) + '</svg>';
   }
+  var WL = [], FRIENDIDS = [], onlyFr = ls('onlyfr') === '1';
+  function V() { return (onlyFr && me) ? R.filter(function (r) { return r.reviews.some(function (v) { return v.uid === me.id || FRIENDIDS.indexOf(v.uid) > -1; }); }) : R; }
+  function wlHas(naam, lat, lon) { return WL.filter(function (w) { return norm(w.naam) === norm(naam) && dist(w.lon, w.lat, lon, lat) < 0.3; })[0]; }
   function drawPins() {
     if (!map) return;
     markers.forEach(function (m) { m.remove(); });
     markers = [];
-    R.forEach(function (r) {
+    if (me) WL.forEach(function (w) {
+      if (R.some(function (r) { return norm(r.name) === norm(w.naam) && dist(r.lon, r.lat, w.lon, w.lat) < 0.3; })) return;
+      var e = document.createElement('div'); e.className = 'wpin'; e.textContent = '♡'; e.title = w.naam;
+      e.setAttribute('role', 'button'); e.setAttribute('aria-label', w.naam + ', op mijn lijstje');
+      e.addEventListener('click', function (ev) { ev.stopPropagation(); toast('♡ ' + w.naam + (w.stad ? ', ' + w.stad : '') + ' (op je lijstje)'); });
+      markers.push(new maplibregl.Marker({ element: e }).setLngLat([w.lon, w.lat]).addTo(map));
+    });
+    V().forEach(function (r) {
       var s = avg(r), lv = level(s), el = document.createElement('div');
       el.className = 'pin' + (r.id === selected ? ' on' : '');
       el.style.zIndex = r.id === selected ? '5' : '1';
@@ -799,6 +825,8 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       drawPins();
       if (R.length) { fitAll(false); fitted = true; }
       $('#zreset').addEventListener('click', function () { fitAll(true); });
+      $('#zfriends').addEventListener('click', function () { onlyFr = !onlyFr; ls('onlyfr', onlyFr ? '1' : '0'); $('#zfriends').setAttribute('aria-pressed', onlyFr); drawPins(); renderList(); fitAll(true); });
+      $('#zfriends').setAttribute('aria-pressed', onlyFr);
     });
   }
 
@@ -844,8 +872,9 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
           (mine ? '<div class="revbtns">' + (left > 0 ? '<button type="button" class="editrev" data-id="' + esc(v.id) + '">Bewerk <span class="when">(nog ' + left + ' uur)</span></button>' : '') +
             '<button type="button" class="delrev" data-id="' + esc(v.id) + '">Verwijder mijn review</button></div>' : '') + '</div>';
       }).join('') +
-      '<button class="btn ghost small" type="button" id="goreview" style="align-self:flex-start">Review schrijven</button>';
+      '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost small" type="button" id="goreview">Review schrijven</button>' + (me ? '<button class="btn ghost small" type="button" id="gowish"></button>' : '') + '</div>';
     box.innerHTML = html;
+    if (me) { var gw = $('#gowish'); var paint = function () { gw.textContent = wlHas(r.name, r.lat, r.lon) ? '♥ Op mijn lijstje' : '♡ Wil ik proberen'; }; paint(); gw.addEventListener('click', function () { toggleWish({ naam: r.name, stad: r.city, straat: r.street, keuken: r.cuisine, lat: r.lat, lon: r.lon }, paint); }); }
     $('#goreview').addEventListener('click', function () { chooseExisting(r.id); tab('review'); });
     box.querySelectorAll('.delrev').forEach(function (b) { b.addEventListener('click', function () { delReview(r, b); }); });
     box.querySelectorAll('.editrev').forEach(function (b) { b.addEventListener('click', function () { startEdit(b.dataset.id); }); });
@@ -966,8 +995,8 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
   function renderList() {
     var box = $('#list');
     box.innerHTML = '';
-    if (!R.length) { box.innerHTML = '<p class="small-note">Nog niets om te laten zien.</p>'; return; }
-    R.slice().sort(function (a, b) { return avg(b) - avg(a); }).forEach(function (r) {
+    if (!V().length) { box.innerHTML = '<p class="small-note">' + (onlyFr ? 'Nog geen reviews van jou of je vrienden.' : 'Nog niets om te laten zien.') + '</p>'; return; }
+    V().slice().sort(function (a, b) { return avg(b) - avg(a); }).forEach(function (r) {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'row';
       b.innerHTML = '<span class="thumb">' + thumb(r) + '</span><span class="nm"><b>' + esc(r.name) + '</b><span>' + esc(r.cuisine || 'Keuken onbekend') + ' · ' + eur(r.price) + ' · ' + esc(r.city) + ' · ' + r.min + ' min</span></span><span class="badge l' + level(avg(r)) + '">' + fmt(avg(r)) + '</span>';
@@ -1061,7 +1090,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
     if (inc.length) h += '<p class="subh">Verzoeken</p>' + inc.map(function (f) { return frow(f, '<button type="button" class="sm hot" data-acc="' + f.id + '">Accepteren</button><button type="button" class="sm" data-del="' + f.id + '">Weigeren</button>'); }).join('');
     h += '<p class="subh">Mijn vrienden</p>' + (ok.length ? ok.map(function (f) { return frow(f, '<button type="button" class="sm" data-del="' + f.id + '">Verwijderen</button>'); }).join('') : '<p class="small-note">Nog geen vrienden. Zoek hierboven op naam.</p>');
     if (out.length) h += '<p class="subh">Verstuurd</p>' + out.map(function (f) { return frow(f, '<button type="button" class="sm" data-del="' + f.id + '">Intrekken</button>'); }).join('');
-    $('#f-list').innerHTML = h;
+    $('#f-list').innerHTML = h; setBadge(inc.length);
   }
   $('#f-go').addEventListener('click', function () {
     var q = $('#f-q').value.trim().replace(/[%_,]/g, ' '); if (q.length < 2) { toast('Typ minstens 2 letters.'); return; }
@@ -1117,6 +1146,25 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
     if (me && b.dataset.prof === me.id) { tab('profile'); return; }
     viewProfile(b.dataset.prof, b.dataset.pn);
   });
+  /* ---------- wil ik proberen ---------- */
+  function toggleWish(w, done) {
+    var ex = wlHas(w.naam, w.lat, w.lon);
+    var p = ex ? sb.from('wishlist').delete().eq('id', ex.id).then(function (r) { if (!r.error) WL = WL.filter(function (x) { return x.id !== ex.id; }); return r; })
+      : sb.from('wishlist').insert({ user_id: me.id, naam: w.naam, stad: w.stad || null, straat: w.straat || null, keuken: w.keuken || null, lat: w.lat, lon: w.lon }).select().then(function (r) { if (!r.error) WL.push((r.data && r.data[0]) || w); return r; });
+    p.then(function (r) { if (r.error) { toast('Mislukt: ' + niceErr(r.error)); return; } toast(ex ? 'Van je lijstje gehaald' : 'Op je lijstje gezet'); if (done) done(); drawPins(); renderWL(); });
+  }
+  function renderWL() {
+    var b = $('#wl-list'); if (!b) return;
+    b.innerHTML = WL.length ? WL.map(function (w) { return '<div class="frow"><span class="nm" style="font-weight:600">' + esc(w.naam) + '<br><span class="small-note">' + esc([w.keuken, w.stad].filter(Boolean).join(' · ')) + '</span></span><button type="button" class="sm hot" data-wrev="' + w.id + '">Review</button><button type="button" class="sm" data-wmap="' + w.id + '">Kaart</button><button type="button" class="sm" data-wdel="' + w.id + '" aria-label="Van lijstje halen">✕</button></div>'; }).join('') : '<p class="small-note">Nog niets op je lijstje. Tik bij een restaurant op "Wil ik proberen".</p>';
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-wrev],[data-wmap],[data-wdel]'); if (!b) return;
+    var id = b.dataset.wrev || b.dataset.wmap || b.dataset.wdel, w = WL.filter(function (x) { return x.id === id; })[0]; if (!w) return;
+    if (b.dataset.wdel) toggleWish(w);
+    else if (b.dataset.wmap) { tab('map'); if (map) map.flyTo({ center: [w.lon, w.lat], zoom: 14, duration: reduced() ? 0 : 800 }); }
+    else { tab('review'); var s = $('#rv-search'); s.value = w.naam; s.dispatchEvent(new Event('input', { bubbles: true })); $('#rv-go').click(); }
+  });
+
   /* ---------- tabs ---------- */
   function tab(name) {
     if (name === 'profile' && !me) { lock(true); $('#gate-guestback').hidden = false; return; }
@@ -1125,7 +1173,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       $('#t-' + n).setAttribute('aria-selected', n === name ? 'true' : 'false');
     });
     window.scrollTo(0, 0);
-    if (name === 'profile' && me) { loadProfile(); loadFriends(); }
+    if (name === 'profile' && me) { loadProfile(); loadFriends(); syncSocial().then(renderWL); }
     if ($('#pop')) $('#pop').hidden = true;
     if (name === 'map' && map) { setTimeout(function () { map.resize(); }, 0); }
     if ((me || guest) && name !== 'ask' && Date.now() - lastLoad > 20000) refresh();
@@ -1332,10 +1380,13 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
         '<label for="rv-sfeer">Sfeer<select id="rv-sfeer"><option value="1">1 van 5</option><option value="2">2 van 5</option><option value="3" selected>3 van 5</option><option value="4">4 van 5</option><option value="5">5 van 5</option></select></label></div>' +
         '<label for="rv-keuken-anders" id="rv-ka-wrap" hidden>Welke keuken?<input type="text" id="rv-keuken-anders" maxlength="30" placeholder="Bijvoorbeeld Thais"></label>';
     }
-    h += '<button type="button" class="btn ghost small" id="rv-change" style="align-self:flex-start">Ander restaurant kiezen</button>';
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn ghost small" id="rv-change">Ander restaurant kiezen</button><button type="button" class="btn ghost small" id="rv-wish"></button></div>';
     box.innerHTML = h; box.hidden = false;
     var ks = $('#rv-keuken');
     if (ks) ks.addEventListener('change', function () { var an = ks.value === '__anders'; $('#rv-ka-wrap').hidden = !an; if (an) $('#rv-keuken-anders').focus(); });
+    var cw = function () { if (chosen.kind === 'existing') { var x = byId(chosen.id); return x ? { naam: x.name, stad: x.city, straat: x.street, keuken: x.cuisine, lat: x.lat, lon: x.lon } : null; } return { naam: chosen.name, stad: chosen.city, straat: chosen.street, keuken: chosen.cuisine, lat: chosen.lat, lon: chosen.lon }; };
+    var wb = $('#rv-wish'), wi = cw(), wp = function () { wb.textContent = wi && wlHas(wi.naam, wi.lat, wi.lon) ? '♥ Op mijn lijstje' : '♡ Bewaar voor later'; };
+    if (!wi) wb.hidden = true; else { wp(); wb.addEventListener('click', function () { toggleWish(wi, wp); }); }
     $('#rv-change').addEventListener('click', function () { chosen = null; $('#rv-search').value = ''; online = []; searchMsg = ''; showErr(''); renderChosen(); renderSugg(); $('#rv-search').focus(); });
   }
   function pick(c) {
