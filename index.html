@@ -221,10 +221,17 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
   <p class="notice" id="status" hidden></p>
 
   <section id="gate" class="card" hidden>
-    <h2>Welkom bij Smaakkaart</h2>
-    <p class="tagline">Eten dat jij en je vrienden goed vinden. Log in met je e-mailadres. Je krijgt een code, een wachtwoord is niet nodig.</p>
-    <form id="gateform" class="field" autocomplete="on">
-      <label for="gate-name">Jouw naam
+    <h2 id="gate-title">Welkom bij Smaakkaart</h2>
+    <div id="gatemenu" class="field">
+      <p class="tagline">Eten dat jij en je vrienden goed vinden. Echte reviews, geen gesponsorde plekken.</p>
+      <button class="btn" id="menu-reg" type="button">Account maken</button>
+      <button class="btn ghost" id="menu-login" type="button">Inloggen met bestaand account</button>
+      <button class="btn ghost" id="menu-guest" type="button">Doorgaan als gast</button>
+      <p class="small-note">Een gast kan alles bekijken, maar geen reviews plaatsen. Je maakt een account met je e-mailadres en een code, een wachtwoord is niet nodig.</p>
+      <button class="btn ghost small" id="gate-guestback" type="button" hidden style="align-self:flex-start">Terug naar de kaart</button>
+    </div>
+    <form id="gateform" class="field" autocomplete="on" hidden>
+      <label for="gate-name" id="gate-namewrap">Jouw naam
         <input type="text" id="gate-name" placeholder="Bijvoorbeeld Stef" maxlength="30" autocomplete="given-name">
       </label>
       <label for="gate-email">E-mailadres
@@ -232,9 +239,10 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       </label>
       <button class="btn" id="gate-btn" type="submit">Stuur mij een code</button>
       <p class="errtxt" id="gate-err" role="alert" hidden></p>
+      <button type="button" class="btn ghost small" id="form-back" style="align-self:flex-start">Terug</button>
     </form>
     <form id="codeform" class="field" hidden autocomplete="one-time-code">
-      <p>We hebben een code gestuurd naar <b id="gate-sent"></b>. Kijk ook in je spam.</p>
+      <p>We hebben een code gestuurd naar <b id="gate-sent"></b>. Kijk ook in je spam, het kan even duren.</p>
       <label for="gate-code">Code uit de mail
         <input type="text" id="gate-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456">
       </label>
@@ -242,7 +250,6 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       <p class="errtxt" id="code-err" role="alert" hidden></p>
       <div class="revbtns"><button type="button" class="btn ghost small" id="code-again">Stuur opnieuw</button><button type="button" class="btn ghost small" id="code-back">Ander e-mailadres</button></div>
     </form>
-    <p class="small-note">Ben je nieuw, dan maakt het inloggen meteen een account voor je aan.</p>
   </section>
 
   <section id="linkcard" class="card" hidden>
@@ -305,6 +312,11 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
   </section>
 
   <section id="tab-review" aria-label="Review schrijven" hidden>
+    <div class="card" id="guestnote" hidden>
+      <h2>Review schrijven</h2>
+      <p class="tagline">Gasten kunnen reviews bekijken, maar niet plaatsen. Maak een account of log in om een review te schrijven.</p>
+      <button class="btn" id="guest-login" type="button" style="align-self:flex-start">Inloggen of account maken</button>
+    </div>
     <form class="card" id="form" autocomplete="off">
       <h2>Review schrijven</h2>
       <div class="field">
@@ -517,18 +529,20 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
   }
 
   /* ---------- inloggen met e-mail en code ---------- */
-  var gateEmail = '', lastSend = 0, linkEmail = '';
+  var gateEmail = '', lastSend = 0, linkEmail = '', gateMode = 'register', guest = false;
+  function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} return null; }
   function lock(on) {
     $('#gate').hidden = !on;
     $('#main').hidden = on;
     $('#nav').hidden = on;
     $('#who').hidden = on;
-    if (on) { $('#linkcard').hidden = true; gateStep(1); }
+    if (on) { $('#linkcard').hidden = true; gateStep(0); }
   }
   function authErr(e) {
     var m = niceErr(e);
     if (/rate limit|only request this after|too many|over_email_send|over_request/i.test(m)) return 'Even geduld: je kunt pas over ongeveer een minuut weer een code aanvragen.';
     if (/token has expired|invalid|otp_expired/i.test(m)) return 'Die code klopt niet of is verlopen. Controleer hem of vraag een nieuwe aan.';
+    if (/signups? not allowed for otp/i.test(m)) return 'Voor dit e-mailadres bestaat nog geen account. Ga terug en kies Account maken.';
     if (/signups? not allowed/i.test(m)) return 'Nieuwe accounts aanmaken staat uit in Supabase (Authentication, Sign In / Providers, "Allow new users to sign up").';
     if (/error sending|smtp|sending .*email|unexpected_failure/i.test(m)) return 'De mail kon niet worden verstuurd. Controleer de mail-instellingen (SMTP) in Supabase.';
     if (/not authorized|not part of the project/i.test(m)) return 'Dit e-mailadres mag nog geen mail ontvangen. Zet de eigen mailserver (SMTP) in Supabase aan.';
@@ -537,6 +551,11 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
   function validEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e); }
   function showWho(edit) {
     var w = $('#who');
+    if (!me && guest) {
+      w.innerHTML = '<span>Je kijkt als <b>gast</b></span><button type="button" id="who-login" class="hot">Inloggen</button>';
+      $('#who-login').addEventListener('click', function () { lock(true); $('#gate-guestback').hidden = false; });
+      return;
+    }
     if (!me) { w.innerHTML = ''; return; }
     if (edit) {
       w.innerHTML = '<input type="text" id="who-in" maxlength="30" aria-label="Jouw naam" value="' + esc(me.naam) + '"><button type="button" id="who-save">Opslaan</button>';
@@ -549,7 +568,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       $('#who-edit').addEventListener('click', function () { showWho(true); });
       if (me.anon) $('#who-link').addEventListener('click', openLink);
       else $('#who-out').addEventListener('click', function () {
-        sb.auth.signOut().then(function () { me = null; R = []; selected = null; showWho(false); lock(true); });
+        sb.auth.signOut().then(function () { me = null; guest = false; ls('guest', null); R = []; selected = null; showWho(false); lock(true); $('#gate-guestback').hidden = true; });
       });
     }
   }
@@ -564,7 +583,8 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
   function afterLogin(user) {
     return sb.from('profiles').select('naam').eq('id', user.id).maybeSingle().then(function (res) {
       me = { id: user.id, naam: (res && res.data && res.data.naam) || 'Gast', anon: !!user.is_anonymous, email: user.email || '' };
-      lock(false); showWho(false); tab('map');
+      guest = false; ls('guest', null);
+      lock(false); showWho(false); tab('map'); applyRole();
       if (!map) initMap();
       setStatus('Laden…');
       return refresh();
@@ -573,17 +593,36 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
   function gateErr(t) { var e = $('#gate-err'); e.textContent = t; e.hidden = !t; }
   function codeErr(t) { var e = $('#code-err'); e.textContent = t; e.hidden = !t; }
   function gateStep(n) {
+    $('#gatemenu').hidden = n !== 0;
     $('#gateform').hidden = n !== 1;
     $('#codeform').hidden = n !== 2;
     gateErr(''); codeErr('');
+    if (n === 0) $('#gate-guestback').hidden = !guest && !me;
+    if (n === 1) {
+      var reg = gateMode === 'register';
+      $('#gate-title').textContent = reg ? 'Account maken' : 'Inloggen';
+      $('#gate-namewrap').hidden = !reg;
+      $('#gate-btn').textContent = 'Stuur mij een code';
+    }
     if (n === 2) { $('#gate-sent').textContent = gateEmail; $('#gate-code').value = ''; $('#gate-code').focus(); }
   }
+  function enterGuest() {
+    guest = true; me = null; ls('guest', '1');
+    lock(false); showWho(false); applyRole(); tab('map');
+    if (!map) initMap();
+    setStatus('Laden…'); return refresh();
+  }
+  /* wat een gast niet mag: geen reviews schrijven */
+  function applyRole() {
+    var g = !me;
+    $('#form').hidden = g; $('#guestnote').hidden = !g;
+  }
   function sendCode() {
-    var nm = $('#gate-name').value.trim(), em = $('#gate-email').value.trim().toLowerCase();
-    if (!nm) { gateErr('Vul je naam in.'); return Promise.resolve(); }
+    var reg = gateMode === 'register', nm = $('#gate-name').value.trim(), em = $('#gate-email').value.trim().toLowerCase();
+    if (reg && !nm) { gateErr('Vul je naam in.'); return Promise.resolve(); }
     if (!validEmail(em)) { gateErr('Vul een geldig e-mailadres in.'); return Promise.resolve(); }
     gateErr(''); $('#gate-btn').disabled = true;
-    return sb.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true, data: { naam: nm } } }).then(function (res) {
+    return sb.auth.signInWithOtp({ email: em, options: reg ? { shouldCreateUser: true, data: { naam: nm } } : { shouldCreateUser: false } }).then(function (res) {
       if (res.error) throw res.error;
       gateEmail = em; lastSend = Date.now(); gateStep(2);
     }).catch(function (err) { gateErr(authErr(err)); }).then(function () { $('#gate-btn').disabled = false; });
@@ -591,6 +630,11 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
   function boot() {
     if (typeof supabase === 'undefined' || !supabase.createClient) { lock(true); gateErr('De verbinding met de database kon niet worden geladen. Ververs de pagina.'); return; }
     sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    $('#menu-reg').addEventListener('click', function () { gateMode = 'register'; gateStep(1); });
+    $('#menu-login').addEventListener('click', function () { gateMode = 'login'; gateStep(1); });
+    $('#menu-guest').addEventListener('click', function () { enterGuest(); });
+    $('#gate-guestback').addEventListener('click', function () { lock(false); showWho(false); applyRole(); tab('map'); });
+    $('#form-back').addEventListener('click', function () { gateStep(0); });
     $('#gateform').addEventListener('submit', function (e) { e.preventDefault(); sendCode(); });
     $('#codeform').addEventListener('submit', function (e) {
       e.preventDefault();
@@ -603,6 +647,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       }).catch(function (err) { codeErr(authErr(err)); }).then(function () { $('#code-btn').disabled = false; });
     });
     $('#code-back').addEventListener('click', function () { gateStep(1); });
+    $('#guest-login').addEventListener('click', function () { lock(true); $('#gate-guestback').hidden = false; });
     $('#code-again').addEventListener('click', function () {
       var wait = 60 - Math.floor((Date.now() - lastSend) / 1000);
       if (wait > 0) { codeErr('Wacht nog ' + wait + ' seconden voordat je een nieuwe code aanvraagt.'); return; }
@@ -613,9 +658,10 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
     $('#link-cancel').addEventListener('click', function () { $('#linkcard').hidden = true; });
     sb.auth.getSession().then(function (r) {
       if (r && r.data && r.data.session) return afterLogin(r.data.session.user);
+      if (ls('guest') === '1') return enterGuest();
       lock(true);
     }).catch(function () { lock(true); });
-    document.addEventListener('visibilitychange', function () { if (!document.hidden && me && Date.now() - lastLoad > 20000) refresh(); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && (me || guest) && Date.now() - lastLoad > 20000) refresh(); });
   }
   /* bestaand naam-account koppelen aan een e-mailadres, zodat je reviews blijven */
   function openLink() { $('#linkcard').hidden = false; $('#link-form').hidden = false; $('#link-verify').hidden = true; $('#link-err').hidden = true; $('#link-email').focus(); window.scrollTo(0, 0); }
@@ -902,7 +948,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
     });
     window.scrollTo(0, 0);
     if (name === 'map' && map) { setTimeout(function () { map.resize(); }, 0); }
-    if (me && name !== 'ask' && Date.now() - lastLoad > 20000) refresh();
+    if ((me || guest) && name !== 'ask' && Date.now() - lastLoad > 20000) refresh();
   }
   document.querySelectorAll('.tabs button').forEach(function (b) { b.addEventListener('click', function () { tab(b.dataset.tab); }); });
 
