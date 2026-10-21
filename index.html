@@ -301,7 +301,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       <div class="card">
         <h2>Waar gaan we eten?</h2>
         <label for="q">Vertel wat je zoekt
-          <textarea id="q">Ik wil graag Spaans eten volgende week. Ik zoek een lage prijsklasse, maar wel veel sfeer. Maximaal 45 minuten rijden vanaf Oud-Beijerland.</textarea>
+          <textarea id="q">Ik wil graag Spaans eten volgende week. Ik zoek een lage prijsklasse, maar wel veel sfeer. Maximaal 45 minuten rijden.</textarea>
         </label>
         <div class="examples" id="examples"></div>
         <button class="btn" id="askbtn" type="button">Zoek restaurants</button>
@@ -563,9 +563,8 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       $('#who-save').addEventListener('click', saveName);
       $('#who-in').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); saveName(); } });
     } else {
-      w.innerHTML = '<span>Jij: <b>' + esc(me.naam) + '</b></span><button type="button" id="who-edit">Naam</button>' +
+      w.innerHTML = '<span>Jij: <b>' + esc(me.naam) + '</b></span>' +
         (me.anon ? '<button type="button" id="who-link" class="hot">Koppel e-mail</button>' : '<button type="button" id="who-out">Uitloggen</button>');
-      $('#who-edit').addEventListener('click', function () { showWho(true); });
       if (me.anon) $('#who-link').addEventListener('click', openLink);
       else $('#who-out').addEventListener('click', function () {
         sb.auth.signOut().then(function () { me = null; guest = false; ls('guest', null); R = []; selected = null; showWho(false); lock(true); $('#gate-guestback').hidden = true; });
@@ -752,10 +751,6 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
       map.on('load', function () { $('#mapnote').hidden = true; dutchNames(); });
       map.on('error', function () { if (!map.isStyleLoaded()) $('#mapnote').hidden = false; });
-      var home = document.createElement('div');
-      home.className = 'homemark';
-      home.innerHTML = '<span class="hd"></span><span class="homelab">Oud-Beijerland</span>';
-      new maplibregl.Marker({ element: home }).setLngLat(HOME).addTo(map);
       drawPins();
       if (R.length) { fitAll(false); fitted = true; }
       $('#zreset').addEventListener('click', function () { fitAll(true); });
@@ -1141,7 +1136,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
   function renderChosen() {
     var box = $('#rv-chosen');
     if (!chosen) { box.hidden = true; box.innerHTML = ''; return; }
-    var where = (chosen.street ? esc(chosen.street) + ', ' : '') + esc(chosen.city || 'plaats onbekend') + ' · ca. ' + Math.round(chosen.d) + ' km van Oud-Beijerland';
+    var where = (chosen.street ? esc(chosen.street) + ', ' : '') + esc(chosen.city || 'plaats onbekend');
     var h = '<div class="ch-top"><div><b>' + esc(chosen.name) + '</b><p class="small-note">' + where + '</p></div>' + (chosen.kind === 'existing' ? '<span class="tag">Staat al op de kaart</span>' : '<span class="tag new">Nieuw restaurant</span>') + '</div>';
     if (chosen.kind === 'new') {
       var extra = Object.keys(CUISINES).filter(function (k) { return CORE.indexOf(k) < 0; }).sort();
