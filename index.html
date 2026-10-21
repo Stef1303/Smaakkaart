@@ -1079,19 +1079,35 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
     else if (b.dataset.del) sb.from('vriendschappen').delete().eq('id', b.dataset.del).then(function (r) { done(r); });
     else if (b.dataset.view) viewProfile(b.dataset.view, NAMES[b.dataset.view]);
   });
+  function pvFriend(id) {
+    var el = $('#pv-fr'); if (!el || !me || id === me.id) return;
+    sb.from('vriendschappen').select('*').then(function (res) {
+      var f = (res.data || []).filter(function (x) { return other(x) === id; })[0];
+      function draw() {
+        if (!f) el.innerHTML = '<button type="button" class="btn" id="pv-add">Vriend toevoegen</button>';
+        else if (f.status === 'ok') el.innerHTML = '<p class="small-note">✓ Jullie zijn vrienden</p>';
+        else if (f.van === me.id) el.innerHTML = '<p class="small-note">Verzoek verstuurd, wacht op acceptatie.</p>';
+        else el.innerHTML = '<button type="button" class="btn" id="pv-acc">Verzoek accepteren</button>';
+        var a = $('#pv-add'), c = $('#pv-acc');
+        if (a) a.onclick = function () { a.disabled = true; sb.from('vriendschappen').insert({ van: me.id, naar: id, status: 'wacht' }).select().then(function (r) { if (r.error) { a.disabled = false; toast('Mislukt: ' + niceErr(r.error)); return; } f = (r.data && r.data[0]) || { van: me.id, naar: id, status: 'wacht' }; toast('Verzoek verstuurd'); draw(); }); };
+        if (c) c.onclick = function () { c.disabled = true; sb.from('vriendschappen').update({ status: 'ok' }).eq('id', f.id).then(function (r) { if (r.error) { c.disabled = false; toast('Mislukt: ' + niceErr(r.error)); return; } f.status = 'ok'; toast('Jullie zijn nu vrienden'); draw(); }); };
+      }
+      draw();
+    });
+  }
   function viewProfile(id, naam) {
     var pop = $('#pop');
     if (!pop) { pop = document.createElement('div'); pop.id = 'pop'; pop.innerHTML = '<div class="card" id="pview"></div>'; document.body.appendChild(pop); pop.addEventListener('click', function (e) { if (e.target === pop) pop.hidden = true; }); }
     pop.hidden = false;
     var box = $('#pview'); box.hidden = false; box.innerHTML = '<p class="small-note">Laden…</p>';
     sb.from('profiel_details').select('*').eq('user_id', id).then(function (res) {
-      var d = res.data && res.data[0], close = '<button type="button" class="photobtn" id="pv-close">Sluiten</button>';
-      if (!d) { box.innerHTML = '<h2>' + esc(naam || 'Profiel') + '</h2><p class="tagline">Dit profiel is privé of alleen zichtbaar voor vrienden.</p>' + close; $('#pv-close').onclick = function () { pop.hidden = true; }; return; }
+      var d = res.data && res.data[0], close = '<div id="pv-fr" style="margin:8px 0"></div><button type="button" class="photobtn" id="pv-close">Sluiten</button>';
+      if (!d) { box.innerHTML = '<h2>' + esc(naam || 'Profiel') + '</h2><p class="tagline">Dit profiel is privé of alleen zichtbaar voor vrienden.</p>' + close; $('#pv-close').onclick = function () { pop.hidden = true; }; pvFriend(id); return; }
       avUrl(d.avatar_pad).then(function (u) {
         box.innerHTML = '<div class="prow"><div class="pav">' + avHtml(u, naam) + '</div><div><h2>' + esc(naam || 'Profiel') + '</h2><p class="tagline">' + esc(d.woonplaats || '') + '</p></div></div>' +
           (d.bio ? '<p>' + esc(d.bio) + '</p>' : '') +
           ((d.keukens || []).length ? '<div class="kchips">' + d.keukens.map(function (k) { return '<span class="chip fl">' + flagRow(flagsFor(k)) + esc(k) + '</span>'; }).join('') + '</div>' : '') + close;
-        $('#pv-close').onclick = function () { pop.hidden = true; };
+        $('#pv-close').onclick = function () { pop.hidden = true; }; pvFriend(id);
       });
     });
   }
