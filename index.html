@@ -213,10 +213,22 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
 .zoom { display:flex; gap:6px; }
 #zfriends[aria-pressed=true] { background:var(--accent); color:var(--accent-fg); }
 .wpin { width:28px; height:28px; border-radius:50%; background:var(--surface); border:2px dashed var(--accent); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; }
-.badge { display:inline-block; min-width:18px; padding:0 5px; border-radius:9px; background:#d33; color:#fff; font-size:11px; line-height:18px; text-align:center; margin-left:4px; }
+.nbadge { display:inline-block; min-width:18px; padding:0 5px; border-radius:9px; background:#d33; color:#fff; font-size:11px; line-height:18px; text-align:center; margin-left:4px; }
 .tabs button { display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 4px 8px; font-size:12px; position:relative; }
 .tabs button svg { display:block; }
-.tabs .badge { position:absolute; top:3px; left:calc(50% + 6px); margin:0; }
+.tabs .nbadge { position:absolute; top:3px; left:calc(50% + 6px); margin:0; }
+.locwrap { position:relative; }
+#s-loc, #s-q { width:100%; background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:12px 14px; color:inherit; font:inherit; }
+.locsug { position:absolute; left:0; right:0; top:100%; margin-top:4px; background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.18); z-index:6; overflow:hidden; }
+.locsug button, .sopt { display:block; width:100%; text-align:left; background:none; border:0; border-top:1px solid var(--line); padding:12px 14px; color:inherit; font:inherit; cursor:pointer; }
+.locsug button:first-child { border-top:0; }
+.sopt { display:flex; justify-content:space-between; align-items:center; font-weight:600; }
+.srow { display:flex; align-items:center; border-top:1px solid var(--line); }
+.srow .row { border-top:0; flex:1; min-width:0; }
+.heart { flex:none; background:none; border:0; font-size:22px; color:var(--accent); cursor:pointer; padding:8px 4px 8px 10px; }
+.sbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:13px; }
+.sbar button { border:1px solid var(--line); background:var(--bg); color:inherit; border-radius:999px; padding:5px 11px; font:inherit; font-size:13px; cursor:pointer; }
+.sbar button[aria-pressed=true] { background:var(--accent); color:var(--accent-fg); border-color:var(--accent); }
 .pav { width:84px; height:84px; border-radius:50%; overflow:hidden; background:var(--line); flex:none; display:flex; align-items:center; justify-content:center; }
 .pav img { width:100%; height:100%; object-fit:cover; }
 .prow { display:flex; gap:14px; align-items:center; }
@@ -338,6 +350,17 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
     </div>
   </section>
 
+  <section id="tab-search" aria-label="Zoeken" hidden>
+    <div class="card" id="s-card">
+      <div class="locwrap">
+        <input type="text" id="s-loc" placeholder="Locatie: overal" autocomplete="off" aria-label="Locatie">
+        <div class="locsug" id="s-locsug" hidden></div>
+      </div>
+      <span class="searchrow"><input type="text" id="s-q" placeholder="Keuken, naam restaurant …" autocomplete="off" aria-label="Zoek op keuken of naam"></span>
+      <p class="small-note">Je zoekt alleen in restaurants met een review op Smaakkaart.</p>
+    </div>
+    <div class="card" id="s-out"></div>
+  </section>
   <section id="tab-review" aria-label="Review schrijven" hidden>
     <div class="card" id="guestnote" hidden>
       <h2>Review schrijven</h2>
@@ -409,7 +432,8 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       <button class="btn" type="submit">Profiel opslaan</button>
     </form>
     <div class="card" id="wl-card">
-      <h2>Wil ik nog proberen</h2>
+      <h2>♥ Mijn hartjes</h2>
+      <p class="small-note" style="margin:0">Plekken die je wilt proberen. Tik op het hartje bij een restaurant om het hier te bewaren.</p>
       <div id="wl-list"></div>
     </div>
     <div class="card" id="friends">
@@ -425,6 +449,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
 <nav class="tabs" id="nav" aria-label="Hoofdmenu" hidden>
   <div class="inner" role="tablist">
     <button type="button" role="tab" id="t-map" aria-selected="true" data-tab="map"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg><span class="tl">Kaart</span></button>
+    <button type="button" role="tab" id="t-search" aria-selected="false" data-tab="search"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><span class="tl">Zoeken</span></button>
     <button type="button" role="tab" id="t-ask" aria-selected="false" data-tab="ask"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span class="tl">Vraag de AI</span></button>
     <button type="button" role="tab" id="t-review" aria-selected="false" data-tab="review"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg><span class="tl">Review</span></button>
     <button type="button" role="tab" id="t-profile" aria-selected="false" data-tab="profile"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg><span class="tl">Profiel</span></button>
@@ -571,7 +596,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       });
     });
   }
-  function setBadge(n) { var t = $('#t-profile'); if (!t) return; var o = t.querySelector('.badge'); if (o) o.remove(); if (n) { var s = document.createElement('span'); s.className = 'badge'; s.textContent = n; t.appendChild(s); } }
+  function setBadge(n) { var t = $('#t-profile'); if (!t) return; var o = t.querySelector('.nbadge'); if (o) o.remove(); if (n) { var s = document.createElement('span'); s.className = 'nbadge'; s.textContent = n; t.appendChild(s); } }
   function syncSocial() {
     if (!me) { WL = []; FRIENDIDS = []; setBadge(0); return; }
     return Promise.all([sb.from('vriendschappen').select('*'), sb.from('wishlist').select('*')]).then(function (res) {
@@ -1002,7 +1027,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
     V().slice().sort(function (a, b) { return avg(b) - avg(a); }).forEach(function (r) {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'row';
-      b.innerHTML = '<span class="thumb">' + thumb(r) + '</span><span class="nm"><b>' + esc(r.name) + '</b><span>' + esc(r.cuisine || 'Keuken onbekend') + ' · ' + eur(r.price) + ' · ' + esc(r.city) + ' · ' + r.min + ' min</span></span><span class="badge l' + level(avg(r)) + '">' + fmt(avg(r)) + '</span>';
+      b.innerHTML = '<span class="thumb">' + thumb(r) + '</span><span class="nm"><b>' + esc(r.name) + '</b><span>' + esc(r.cuisine || 'Keuken onbekend') + ' · ' + eur(r.price) + ' · ' + esc(r.city) + '</span></span><span class="badge l' + level(avg(r)) + '">' + fmt(avg(r)) + '</span>';
       b.addEventListener('click', function () { select(r.id, true); window.scrollTo({ top: 0, behavior: 'smooth' }); });
       box.appendChild(b);
     });
@@ -1158,26 +1183,103 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
   }
   function renderWL() {
     var b = $('#wl-list'); if (!b) return;
-    b.innerHTML = WL.length ? WL.map(function (w) { return '<div class="frow"><span class="nm" style="font-weight:600">' + esc(w.naam) + '<br><span class="small-note">' + esc([w.keuken, w.stad].filter(Boolean).join(' · ')) + '</span></span><button type="button" class="sm hot" data-wrev="' + w.id + '">Review</button><button type="button" class="sm" data-wmap="' + w.id + '">Kaart</button><button type="button" class="sm" data-wdel="' + w.id + '" aria-label="Van lijstje halen">✕</button></div>'; }).join('') : '<p class="small-note">Nog niets op je lijstje. Tik bij een restaurant op "Wil ik proberen".</p>';
+    b.innerHTML = WL.length ? WL.map(function (w) { return '<div class="frow"><span class="nm" style="font-weight:600">' + esc(w.naam) + '<br><span class="small-note">' + esc([w.keuken, w.stad].filter(Boolean).join(' · ')) + '</span></span><button type="button" class="sm hot" data-wrev="' + w.id + '">Review</button><button type="button" class="sm" data-wmap="' + w.id + '">Bekijk</button><button type="button" class="sm" data-wdel="' + w.id + '" aria-label="Van lijstje halen">✕</button></div>'; }).join('') : '<p class="small-note">Nog niets op je lijstje. Tik bij een restaurant op "Wil ik proberen".</p>';
   }
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-wrev],[data-wmap],[data-wdel]'); if (!b) return;
     var id = b.dataset.wrev || b.dataset.wmap || b.dataset.wdel, w = WL.filter(function (x) { return x.id === id; })[0]; if (!w) return;
     if (b.dataset.wdel) toggleWish(w);
-    else if (b.dataset.wmap) { tab('map'); if (map) map.flyTo({ center: [w.lon, w.lat], zoom: 14, duration: reduced() ? 0 : 800 }); }
+    else if (b.dataset.wmap) { var rr = R.filter(function (r) { return norm(r.name) === norm(w.naam) && dist(r.lon, r.lat, w.lon, w.lat) < 0.3; })[0]; if (rr) { select(rr.id, true); tab('map'); return; } tab('map'); if (map) map.flyTo({ center: [w.lon, w.lat], zoom: 14, duration: reduced() ? 0 : 800 }); }
     else { tab('review'); var s = $('#rv-search'); s.value = w.naam; s.dispatchEvent(new Event('input', { bubbles: true })); $('#rv-go').click(); }
+  });
+
+
+  /* ---------- zoeken ---------- */
+  var S = { loc: '', near: false, q: '', all: false, hearts: false, sort: 'score' }, nearPos = null;
+  function recents() { try { return JSON.parse(ls('recent') || '[]'); } catch (e) { return []; } }
+  function addRecent(q) { q = q.trim(); if (q.length < 2) return; var a = recents().filter(function (x) { return x !== q; }); a.unshift(q); ls('recent', JSON.stringify(a.slice(0, 5))); }
+  function cities() { var m = {}; R.forEach(function (r) { if (r.city) m[r.city] = (m[r.city] || 0) + 1; }); return Object.keys(m).sort(); }
+  function matchQ(r, q) {
+    var t = norm(q).split(' ').filter(Boolean); if (!t.length) return true;
+    var hay = norm(r.name + ' ' + r.cuisine + ' ' + r.city);
+    return t.every(function (w) {
+      if (hay.indexOf(w) > -1) return true;
+      return Object.keys(SYN).some(function (k) { return norm(k) === norm(r.cuisine) && SYN[k].indexOf(w) > -1; });
+    });
+  }
+  function results() {
+    var out = R.filter(function (r) { return matchQ(r, S.q) && (!S.loc || S.near || norm(r.city).indexOf(norm(S.loc)) > -1) && (!S.hearts || wlHas(r.name, r.lat, r.lon)); });
+    out.forEach(function (r) { r._d = nearPos ? dist(nearPos[0], nearPos[1], r.lon, r.lat) : null; });
+    if (S.sort === 'dist' && nearPos) out.sort(function (a, b) { return a._d - b._d; }); else out.sort(function (a, b) { return avg(b) - avg(a); });
+    return out;
+  }
+  function renderSearch() {
+    var box = $('#s-out'), active = S.q.trim() || S.loc || S.all || S.hearts, h = '';
+    if (!active) {
+      h += '<button type="button" class="sopt" data-s="all">Alle restaurants bekijken <span>›</span></button>';
+      if (me) h += '<button type="button" class="sopt" data-s="hearts">♥ Mijn hartjes <span>' + WL.length + ' ›</span></button>';
+      var rc = recents();
+      if (rc.length) h += '<h3>Recente zoekopdrachten</h3>' + rc.map(function (x) { return '<button type="button" class="sopt" data-recent="' + esc(x) + '">' + esc(x) + '</button>'; }).join('');
+      var cu = {}; R.forEach(function (r) { if (r.cuisine) cu[r.cuisine] = (cu[r.cuisine] || 0) + 1; });
+      var ck = Object.keys(cu).sort(function (a, b) { return cu[b] - cu[a]; });
+      if (ck.length) h += '<h3>Keukens</h3><div class="kchips">' + ck.map(function (k) { return '<button type="button" data-recent="' + esc(k) + '">' + esc(k) + '</button>'; }).join('') + '</div>';
+      box.innerHTML = h; return;
+    }
+    var list = results();
+    h += '<div class="sbar"><b>' + list.length + ' restaurant' + (list.length === 1 ? '' : 's') + '</b>' +
+      (nearPos ? '<button type="button" data-sort="score" aria-pressed="' + (S.sort === 'score') + '">Hoogste cijfer</button><button type="button" data-sort="dist" aria-pressed="' + (S.sort === 'dist') + '">Dichtstbij</button>' : '') +
+      (me ? '<button type="button" data-s="hearts" aria-pressed="' + S.hearts + '">♥ Mijn hartjes</button>' : '') +
+      '<button type="button" data-s="clear">✕ Wissen</button></div>';
+    h += list.length ? list.map(function (r) {
+      var hh = me ? '<button type="button" class="heart" data-heart="' + r.id + '" aria-label="Hartje">' + (wlHas(r.name, r.lat, r.lon) ? '♥' : '♡') + '</button>' : '';
+      return '<div class="srow"><button type="button" class="row" data-open="' + r.id + '"><span class="thumb">' + thumb(r) + '</span><span class="nm"><b>' + esc(r.name) + '</b><span>' + esc(r.cuisine || 'Keuken onbekend') + ' · ' + eur(r.price) + ' · ' + esc(r.city) + (r._d != null ? ' · ' + r._d.toFixed(1).replace('.', ',') + ' km' : '') + '</span></span><span class="badge l' + level(avg(r)) + '">' + fmt(avg(r)) + '</span></button>' + hh + '</div>';
+    }).join('') : '<p class="small-note">Niets gevonden. Probeer een andere keuken, naam of plaats.</p>';
+    box.innerHTML = h;
+  }
+  function locSug() {
+    var sg = $('#s-locsug'), v = norm($('#s-loc').value), h = '<button type="button" data-loc="__near">📍 In de buurt</button><button type="button" data-loc="__all">Overal</button>';
+    cities().filter(function (c) { return !v || S.near || norm(c).indexOf(v) > -1; }).forEach(function (c) { h += '<button type="button" data-loc="' + esc(c) + '">' + esc(c) + '</button>'; });
+    sg.innerHTML = h; sg.hidden = false;
+  }
+  $('#s-loc').addEventListener('focus', function () { this.select(); S.near = false; locSug(); });
+  $('#s-loc').addEventListener('input', function () { S.loc = this.value.trim(); S.near = false; locSug(); renderSearch(); });
+  $('#s-locsug').addEventListener('mousedown', function (e) { e.preventDefault(); });
+  $('#s-locsug').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return; var v = b.dataset.loc, inp = $('#s-loc');
+    $('#s-locsug').hidden = true; inp.blur();
+    if (v === '__all') { S.loc = ''; S.near = false; inp.value = ''; renderSearch(); }
+    else if (v === '__near') {
+      if (!navigator.geolocation) { toast('Locatie is niet beschikbaar op dit apparaat.'); return; }
+      inp.value = 'In de buurt…';
+      navigator.geolocation.getCurrentPosition(function (p) { nearPos = [p.coords.longitude, p.coords.latitude]; S.near = true; S.loc = 'In de buurt'; S.sort = 'dist'; inp.value = 'In de buurt'; renderSearch(); },
+        function () { S.loc = ''; S.near = false; inp.value = ''; toast('Je locatie kon niet worden bepaald. Geef de app toestemming in je instellingen.'); renderSearch(); }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+    } else { S.loc = v; S.near = false; inp.value = v; renderSearch(); }
+  });
+  $('#s-loc').addEventListener('blur', function () { $('#s-locsug').hidden = true; });
+  $('#s-q').addEventListener('input', function () { S.q = this.value; renderSearch(); });
+  $('#s-q').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); addRecent(S.q); this.blur(); } });
+  $('#s-out').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.s === 'all') { S.all = true; renderSearch(); }
+    else if (b.dataset.s === 'hearts') { S.hearts = !S.hearts; renderSearch(); }
+    else if (b.dataset.s === 'clear') { S = { loc: '', near: false, q: '', all: false, hearts: false, sort: 'score' }; $('#s-q').value = ''; $('#s-loc').value = ''; renderSearch(); }
+    else if (b.dataset.sort) { S.sort = b.dataset.sort; renderSearch(); }
+    else if (b.dataset.recent) { S.q = b.dataset.recent; $('#s-q').value = S.q; addRecent(S.q); renderSearch(); }
+    else if (b.dataset.heart) { var r = byId(b.dataset.heart); if (r) toggleWish({ naam: r.name, stad: r.city, straat: r.street, keuken: r.cuisine, lat: r.lat, lon: r.lon }, renderSearch); }
+    else if (b.dataset.open) { addRecent(S.q); select(b.dataset.open, true); tab('map'); }
   });
 
   /* ---------- tabs ---------- */
   function tab(name) {
     if (name === 'profile' && !me) { lock(true); $('#gate-guestback').hidden = false; return; }
-    ['map', 'ask', 'review', 'profile'].forEach(function (n) {
+    ['map', 'search', 'ask', 'review', 'profile'].forEach(function (n) {
       $('#tab-' + n).hidden = n !== name;
       $('#t-' + n).setAttribute('aria-selected', n === name ? 'true' : 'false');
     });
     window.scrollTo(0, 0);
     if (name === 'profile' && me) { loadProfile(); loadFriends(); syncSocial().then(renderWL); }
     if ($('#pop')) $('#pop').hidden = true;
+    if (name === 'search') renderSearch();
     if (name === 'map' && map) { setTimeout(function () { map.resize(); }, 0); }
     if ((me || guest) && name !== 'ask' && Date.now() - lastLoad > 20000) refresh();
   }
