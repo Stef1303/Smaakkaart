@@ -214,6 +214,9 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
 #zfriends[aria-pressed=true] { background:var(--accent); color:var(--accent-fg); }
 .wpin { width:28px; height:28px; border-radius:50%; background:var(--surface); border:2px dashed var(--accent); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; }
 .badge { display:inline-block; min-width:18px; padding:0 5px; border-radius:9px; background:#d33; color:#fff; font-size:11px; line-height:18px; text-align:center; margin-left:4px; }
+.tabs button { display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 4px 8px; font-size:12px; position:relative; }
+.tabs button svg { display:block; }
+.tabs .badge { position:absolute; top:3px; left:calc(50% + 6px); margin:0; }
 .pav { width:84px; height:84px; border-radius:50%; overflow:hidden; background:var(--line); flex:none; display:flex; align-items:center; justify-content:center; }
 .pav img { width:100%; height:100%; object-fit:cover; }
 .prow { display:flex; gap:14px; align-items:center; }
@@ -397,7 +400,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
           <button type="button" class="photobtn" id="p-rmav">Foto weghalen</button>
         </div></div>
       <label for="p-naam">Naam<input type="text" id="p-naam" maxlength="30"></label>
-      <label for="p-stad">Woonplaats<input type="text" id="p-stad" maxlength="60" placeholder="Bijvoorbeeld Oud-Beijerland"></label>
+      <label for="p-stad">Woonplaats<input type="text" id="p-stad" maxlength="60" placeholder="Waar woon je?"></label>
       <label for="p-bio">Over mij (optioneel)<textarea id="p-bio" rows="3" maxlength="200" placeholder="Een korte bio"></textarea></label>
       <div><b style="font-size:14px">Favoriete keukens</b><div class="kchips" id="p-keukens" style="margin-top:6px"></div></div>
       <label for="p-vis">Wie ziet mijn profiel?
@@ -421,10 +424,10 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
 
 <nav class="tabs" id="nav" aria-label="Hoofdmenu" hidden>
   <div class="inner" role="tablist">
-    <button type="button" role="tab" id="t-map" aria-selected="true" data-tab="map">Kaart</button>
-    <button type="button" role="tab" id="t-ask" aria-selected="false" data-tab="ask">Vraag de AI</button>
-    <button type="button" role="tab" id="t-review" aria-selected="false" data-tab="review">Review</button>
-    <button type="button" role="tab" id="t-profile" aria-selected="false" data-tab="profile">Profiel</button>
+    <button type="button" role="tab" id="t-map" aria-selected="true" data-tab="map"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg><span class="tl">Kaart</span></button>
+    <button type="button" role="tab" id="t-ask" aria-selected="false" data-tab="ask"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span class="tl">Vraag de AI</span></button>
+    <button type="button" role="tab" id="t-review" aria-selected="false" data-tab="review"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg><span class="tl">Review</span></button>
+    <button type="button" role="tab" id="t-profile" aria-selected="false" data-tab="profile"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg><span class="tl">Profiel</span></button>
   </div>
 </nav>
 <div class="toast" id="toast" hidden></div>
@@ -568,7 +571,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       });
     });
   }
-  function setBadge(n) { var t = $('#t-profile'); if (t) t.innerHTML = 'Profiel' + (n ? ' <span class="badge">' + n + '</span>' : ''); }
+  function setBadge(n) { var t = $('#t-profile'); if (!t) return; var o = t.querySelector('.badge'); if (o) o.remove(); if (n) { var s = document.createElement('span'); s.className = 'badge'; s.textContent = n; t.appendChild(s); } }
   function syncSocial() {
     if (!me) { WL = []; FRIENDIDS = []; setBadge(0); return; }
     return Promise.all([sb.from('vriendschappen').select('*'), sb.from('wishlist').select('*')]).then(function (res) {
