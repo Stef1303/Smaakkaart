@@ -785,7 +785,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       return;
     }
     var s = avg(r), photos = photosOf(r);
-    var html = '<div class="hero-line"><div><h2>' + esc(r.name) + '</h2><p class="tagline">' + esc(whereOf(r)) + ' · ca. ' + r.min + ' min rijden vanaf Oud-Beijerland</p></div>' +
+    var html = '<div class="hero-line"><div><h2>' + esc(r.name) + '</h2><p class="tagline">' + esc(whereOf(r)) + '</p></div>' +
       '<div class="score">' + fmt(s) + '<small>' + r.reviews.length + ' review' + (r.reviews.length === 1 ? '' : 's') + '</small></div></div>' +
       '<div class="chips"><span class="chip fl">' + flagRow(r.flags) + esc(r.cuisine || 'Keuken onbekend') + '</span><span class="chip">' + eur(r.price) + '</span><span class="chip dots" aria-label="Sfeer ' + r.sfeer + ' van 5">Sfeer ' + dots(r.sfeer) + '</span></div>' +
       linksHtml(r) +
