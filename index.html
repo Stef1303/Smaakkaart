@@ -206,6 +206,10 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
 .searchrow .btn { flex:none; }
 .tabs .inner { grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:1fr; }
 .tabs button[hidden] { display:none; }
+#pop { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:20; display:flex; align-items:center; justify-content:center; padding:16px; }
+#pop[hidden] { display:none; }
+#pop .card { width:100%; max-width:420px; max-height:85vh; overflow:auto; }
+.whobtn { background:none; border:0; padding:0; font:inherit; font-weight:700; color:inherit; cursor:pointer; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px; }
 .pav { width:84px; height:84px; border-radius:50%; overflow:hidden; background:var(--line); flex:none; display:flex; align-items:center; justify-content:center; }
 .pav img { width:100%; height:100%; object-fit:cover; }
 .prow { display:flex; gap:14px; align-items:center; }
@@ -397,7 +401,6 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       <p class="small-note">Je reviews zijn altijd zichtbaar voor iedereen, met alleen je naam erbij. Deze instelling bepaalt wie je woonplaats, bio, foto en favoriete keukens ziet.</p>
       <button class="btn" type="submit">Profiel opslaan</button>
     </form>
-    <div class="card" id="pview" hidden></div>
     <div class="card" id="friends">
       <h2>Vrienden</h2>
       <span class="searchrow"><input type="text" id="f-q" maxlength="30" placeholder="Zoek een vriend op naam"><button type="button" class="btn" id="f-go">Zoek</button></span>
@@ -837,7 +840,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
         var mine = me && v.uid === me.id;
         if (mine && editing === v.id) return editorHtml(v);
         var left = hoursLeft(v);
-        return '<div class="review"><div class="top"><span>' + esc(v.who) + ' <span class="when">' + esc(when(v.at)) + (v.edited ? ' · bewerkt' : '') + '</span></span><span>' + fmt(v.score) + '</span></div>' + (v.text ? '<p>' + esc(v.text) + '</p>' : '') +
+        return '<div class="review"><div class="top"><span><button type="button" class="whobtn" data-prof="' + esc(v.uid) + '" data-pn="' + esc(v.who) + '">' + esc(v.who) + '</button> <span class="when">' + esc(when(v.at)) + (v.edited ? ' · bewerkt' : '') + '</span></span><span>' + fmt(v.score) + '</span></div>' + (v.text ? '<p>' + esc(v.text) + '</p>' : '') +
           (mine ? '<div class="revbtns">' + (left > 0 ? '<button type="button" class="editrev" data-id="' + esc(v.id) + '">Bewerk <span class="when">(nog ' + left + ' uur)</span></button>' : '') +
             '<button type="button" class="delrev" data-id="' + esc(v.id) + '">Verwijder mijn review</button></div>' : '') + '</div>';
       }).join('') +
@@ -1077,19 +1080,27 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
     else if (b.dataset.view) viewProfile(b.dataset.view, NAMES[b.dataset.view]);
   });
   function viewProfile(id, naam) {
-    var box = $('#pview'); box.hidden = false; box.innerHTML = '<p class="small-note">Laden…</p>'; box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    var pop = $('#pop');
+    if (!pop) { pop = document.createElement('div'); pop.id = 'pop'; pop.innerHTML = '<div class="card" id="pview"></div>'; document.body.appendChild(pop); pop.addEventListener('click', function (e) { if (e.target === pop) pop.hidden = true; }); }
+    pop.hidden = false;
+    var box = $('#pview'); box.hidden = false; box.innerHTML = '<p class="small-note">Laden…</p>';
     sb.from('profiel_details').select('*').eq('user_id', id).then(function (res) {
       var d = res.data && res.data[0], close = '<button type="button" class="photobtn" id="pv-close">Sluiten</button>';
-      if (!d) { box.innerHTML = '<h2>' + esc(naam || 'Profiel') + '</h2><p class="tagline">Dit profiel is privé of alleen zichtbaar voor vrienden.</p>' + close; $('#pv-close').onclick = function () { box.hidden = true; }; return; }
+      if (!d) { box.innerHTML = '<h2>' + esc(naam || 'Profiel') + '</h2><p class="tagline">Dit profiel is privé of alleen zichtbaar voor vrienden.</p>' + close; $('#pv-close').onclick = function () { pop.hidden = true; }; return; }
       avUrl(d.avatar_pad).then(function (u) {
         box.innerHTML = '<div class="prow"><div class="pav">' + avHtml(u, naam) + '</div><div><h2>' + esc(naam || 'Profiel') + '</h2><p class="tagline">' + esc(d.woonplaats || '') + '</p></div></div>' +
           (d.bio ? '<p>' + esc(d.bio) + '</p>' : '') +
           ((d.keukens || []).length ? '<div class="kchips">' + d.keukens.map(function (k) { return '<span class="chip fl">' + flagRow(flagsFor(k)) + esc(k) + '</span>'; }).join('') + '</div>' : '') + close;
-        $('#pv-close').onclick = function () { box.hidden = true; };
+        $('#pv-close').onclick = function () { pop.hidden = true; };
       });
     });
   }
 
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-prof]'); if (!b) return;
+    if (me && b.dataset.prof === me.id) { tab('profile'); return; }
+    viewProfile(b.dataset.prof, b.dataset.pn);
+  });
   /* ---------- tabs ---------- */
   function tab(name) {
     if (name === 'profile' && !me) { lock(true); $('#gate-guestback').hidden = false; return; }
@@ -1098,7 +1109,8 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       $('#t-' + n).setAttribute('aria-selected', n === name ? 'true' : 'false');
     });
     window.scrollTo(0, 0);
-    if (name === 'profile' && me) { loadProfile(); loadFriends(); $('#pview').hidden = true; }
+    if (name === 'profile' && me) { loadProfile(); loadFriends(); }
+    if ($('#pop')) $('#pop').hidden = true;
     if (name === 'map' && map) { setTimeout(function () { map.resize(); }, 0); }
     if ((me || guest) && name !== 'ask' && Date.now() - lastLoad > 20000) refresh();
   }
