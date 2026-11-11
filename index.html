@@ -6,61 +6,71 @@
 <title>Smaakkaart</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="icon-180.png">
-<meta name="theme-color" content="#F2F5F3">
+<meta name="theme-color" content="#D9442A">
+<script>
+/* thema zo vroeg mogelijk zetten, zodat er geen witte flits is */
+(function () { try { var t = localStorage.getItem('thema'), d = document.documentElement;
+  if (t === 'licht') d.setAttribute('data-theme', 'light');
+  else if (t === 'donker' || t === 'zwart') d.setAttribute('data-theme', 'dark');
+  if (t === 'zwart') d.setAttribute('data-black', '1'); } catch (e) {} })();
+</script>
 <link rel="stylesheet" href="lib/maplibre-gl.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Sans:wght@400;500;700&display=swap">
+<link rel="preload" href="lib/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="lib/fonts/jakarta.woff2" as="font" type="font/woff2" crossorigin>
 <style>
 /* Layout: één kolom op telefoonbreedte. Kaart bovenaan (zoom en sleep), detail en lijst eronder, tabbalk onderin. */
 :root {
-  --bg: #F2F5F3;
+  --bg: #FBF6EF;
   --surface: #FFFFFF;
-  --fg: #14201B;
-  --muted: #58675F;
-  --line: #D6DDD9;
-  --accent: #1F4FE0;
+  --fg: #2A1D16;
+  --muted: #7D6B5E;
+  --line: #EEE3D6;
+  --accent: #D9442A;
   --accent-fg: #FFFFFF;
-  --land: #E8EEE2;
-  --park: #CFE4C4;
-  --urban: #E2DFD6;
-  --sand: #F0E6C8;
-  --water: #B9DAEE;
+  --accent-soft: #FCE6DE;
+  --land: #F1EDE4;
+  --park: #D8E6C9;
+  --urban: #E9E3D8;
+  --sand: #F3E8CC;
+  --water: #BFDCEB;
   --water-label: #4B7FA3;
-  --road: #FBD98A;
-  --road-edge: #D2A24A;
+  --road: #F9D79A;
+  --road-edge: #D6A85A;
   --minor: #FFFFFF;
-  --minor-edge: #D3D0C6;
-  --halo: #E8EEE2;
-  --label: #4F5E56;
-  --p1: #A9BDFF; --p1-fg: #0E1A4D;
-  --p2: #4F78F5; --p2-fg: #FFFFFF;
-  --p3: #1636C0; --p3-fg: #FFFFFF;
+  --minor-edge: #DDD5C8;
+  --halo: #F1EDE4;
+  --label: #5E5048;
+  --p1: #F6CDB2; --p1-fg: #5A2410;
+  --p2: #EC7A45; --p2-fg: #FFFFFF;
+  --p3: #B52E19; --p3-fg: #FFFFFF;
   --web: #9A5B00;
   --web-bg: #FBEFD9;
-  --own: #0F6B3E;
-  --own-bg: #DDF3E6;
-  --font-display: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --own: #2E7D4F;
+  --own-bg: #E1F2E6;
+  --shadow: 0 1px 2px rgba(60,30,10,.05), 0 6px 20px rgba(60,30,10,.07);
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0F1613; --surface: #17211C; --fg: #E7EEE9; --muted: #98A89F; --line: #27352E;
-    --accent: #7E9DFF; --accent-fg: #0B1230;
-    --land: #1B2620; --park: #203428; --urban: #27312B; --sand: #3A3626; --water: #142B3A; --water-label: #6FA3C6;
-    --road: #8F7633; --road-edge: #5E4D22; --minor: #33403A; --minor-edge: #3C4A43; --halo: #1B2620; --label: #A9B9AF;
-    --p1: #4A5FB0; --p1-fg: #FFFFFF; --p2: #7E9DFF; --p2-fg: #0B1230; --p3: #B5C7FF; --p3-fg: #0B1230;
-    --web: #F0BE6A; --web-bg: #3A2D12; --own: #7FDDA8; --own-bg: #12331F;
+    --bg: #15100D; --surface: #211915; --fg: #F5ECE3; --muted: #B7A698; --line: #34281F;
+    --accent: #FF7452; --accent-fg: #2B0C04; --accent-soft: #3E1E15;
+    --land: #1E1915; --park: #22301F; --urban: #2A231D; --sand: #3A3324; --water: #16283A; --water-label: #6FA3C6;
+    --road: #8F7038; --road-edge: #5E4A25; --minor: #3A302A; --minor-edge: #443830; --halo: #1E1915; --label: #BBAA9C;
+    --p1: #6E3A25; --p1-fg: #FFE3D6; --p2: #EC7A45; --p2-fg: #2B0C04; --p3: #FFB59B; --p3-fg: #3B1006;
+    --web: #F0BE6A; --web-bg: #3A2D12; --own: #8FDDAF; --own-bg: #163323;
+    --shadow: none;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0F1613; --surface: #17211C; --fg: #E7EEE9; --muted: #98A89F; --line: #27352E;
-  --accent: #7E9DFF; --accent-fg: #0B1230;
-  --land: #1B2620; --park: #203428; --urban: #27312B; --sand: #3A3626; --water: #142B3A; --water-label: #6FA3C6;
-  --road: #8F7633; --road-edge: #5E4D22; --minor: #33403A; --minor-edge: #3C4A43; --halo: #1B2620; --label: #A9B9AF;
-  --p1: #4A5FB0; --p1-fg: #FFFFFF; --p2: #7E9DFF; --p2-fg: #0B1230; --p3: #B5C7FF; --p3-fg: #0B1230;
-  --web: #F0BE6A; --web-bg: #3A2D12; --own: #7FDDA8; --own-bg: #12331F;
+  --bg: #15100D; --surface: #211915; --fg: #F5ECE3; --muted: #B7A698; --line: #34281F;
+    --accent: #FF7452; --accent-fg: #2B0C04; --accent-soft: #3E1E15;
+    --land: #1E1915; --park: #22301F; --urban: #2A231D; --sand: #3A3324; --water: #16283A; --water-label: #6FA3C6;
+    --road: #8F7038; --road-edge: #5E4A25; --minor: #3A302A; --minor-edge: #443830; --halo: #1E1915; --label: #BBAA9C;
+    --p1: #6E3A25; --p1-fg: #FFE3D6; --p2: #EC7A45; --p2-fg: #2B0C04; --p3: #FFB59B; --p3-fg: #3B1006;
+    --web: #F0BE6A; --web-bg: #3A2D12; --own: #8FDDAF; --own-bg: #163323;
+    --shadow: none;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -184,8 +194,6 @@ input[type=file] { font-weight: 400; font-size: 14px; max-width: 100%; }
 
 .logo { display:block; height:64px; width:auto; }
 h1.brand { margin:0; line-height:0; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .logo { filter: invert(1); } }
-:root[data-theme="dark"] .logo { filter: invert(1); }
 
 .who { display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--muted); }
 .who b { color:var(--fg); }
@@ -264,12 +272,129 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
 .nofoto { font-size:13px; color:var(--muted); }
 .sg.act { background:var(--surface); }
 #status { font-size:13px; color:var(--muted); }
+
+/* ===== Thema 2026: warme kleuren, nieuwe letters, zwevende menubalk, openingsscherm ===== */
+@font-face { font-family: 'Fraunces'; src: url('lib/fonts/fraunces.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Plus Jakarta Sans'; src: url('lib/fonts/jakarta.woff2') format('woff2'); font-weight: 200 800; font-style: normal; font-display: swap; }
+body { padding-block: 0 120px; -webkit-font-smoothing: antialiased; }
+h1, h2, .msec, .res .head b, .score, .rangeout, .initial { font-family: var(--font-display); font-optical-sizing: auto; font-weight: 600; letter-spacing: -0.015em; }
+h2 { font-size: 22px; }
+h3 { letter-spacing: .06em; font-weight: 700; }
+b, strong { font-weight: 700; }
+header { align-items: center; padding-top: 14px; }
+.logo { height: 52px; }
+/* kaarten: zacht, zonder harde rand */
+.card { border: 0; border-radius: 20px; box-shadow: var(--shadow); padding: 18px; }
+.mapwrap { border: 0; border-radius: 20px; box-shadow: var(--shadow); }
+.legend { border-top: 0; }
+.chosen, .notfound, .sugg { border-radius: 14px; }
+/* knoppen: rond en vriendelijk */
+.btn { border-radius: 999px; padding: 13px 20px; font-weight: 700; letter-spacing: .005em; transition: transform .12s ease, filter .15s; }
+.btn:active { transform: scale(.97); }
+.btn.ghost { background: var(--surface); color: var(--fg); border: 1.5px solid var(--line); }
+.btn.small { padding: 8px 14px; }
+.links a { border-radius: 999px; background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.zoom button { border-radius: 999px; border: 0; box-shadow: 0 2px 10px rgba(0,0,0,.15); }
+input[type=text], input[type=email], select, textarea, #s-loc, #s-q { border-radius: 14px; background: var(--surface); border: 1.5px solid var(--line); }
+input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #s-q:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 4px var(--accent-soft); }
+#s-q { padding-left: 42px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239C8878' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='M16 16l4.5 4.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-size: 20px; background-position: 14px 50%; }
+.badge { border-radius: 10px; }
+.row .thumb { border-radius: 14px; }
+.tile img, .tile .ph { border-radius: 14px; }
+.chip, .kchips button, .sbar button, .examples button { background: var(--surface); }
+.gatebtns { display: flex; flex-direction: column; gap: 10px; }
+#gate h2 { font-size: 28px; }
+/* zwevende menubalk onderin */
+.tabs { left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); padding-bottom: 0; border: 0; border-radius: 26px; background: color-mix(in srgb, var(--surface) 92%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 8px 30px rgba(40,20,10,.18); max-width: 536px; margin: 0 auto; }
+.tabs .inner { padding: 6px; }
+.tabs button { border-top: 0; border-radius: 20px; padding: 8px 2px 7px; font-weight: 600; font-size: 11px; }
+.tabs button svg { width: 23px; height: 23px; }
+.tabs button[aria-selected="true"] { color: var(--accent); background: var(--accent-soft); }
+.toast { border-radius: 999px; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card, :root:not([data-theme="light"]) .mapwrap { border: 1px solid var(--line); } :root:not([data-theme="light"]) .tabs { box-shadow: 0 0 0 1px var(--line), 0 8px 30px rgba(0,0,0,.5); } }
+:root[data-theme="dark"] .card, :root[data-theme="dark"] .mapwrap { border: 1px solid var(--line); }
+
+
+/* logo licht/donker */
+.logo.dk { display: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .logo.lt { display: none; } :root:not([data-theme="light"]) .logo.dk { display: block; } }
+:root[data-theme="dark"] .logo.lt { display: none; }
+:root[data-theme="dark"] .logo.dk { display: block; }
+/* extra thema-waarden */
+:root { --hl1: 91%; --hl2: 80%; --hs: 70%; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --hl1: 20%; --hl2: 28%; --hs: 32%; } }
+:root[data-theme="dark"] { --hl1: 20%; --hl2: 28%; --hs: 32%; }
+/* zwart (voor OLED-schermen) */
+:root[data-theme="dark"][data-black] { --bg: #000000; --surface: #141110; --line: #2B2420; --land: #0E0C0B; --halo: #0E0C0B; --accent-soft: #33170F; }
+
+/* ===== Voor jou ===== */
+.hello { font-size: 27px; margin: 2px 0 0; }
+.hello span { color: var(--accent); }
+.hscroll { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -16px; padding: 2px 16px 8px; scrollbar-width: none; scroll-padding: 16px; }
+.hscroll::-webkit-scrollbar { display: none; }
+.cu { flex: none; width: 74px; display: flex; flex-direction: column; align-items: center; gap: 7px; background: none; border: 0; padding: 0; color: inherit; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; scroll-snap-align: start; }
+.cu .ci { position: relative; width: 66px; height: 66px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--surface), var(--accent-soft) 75%); box-shadow: inset 0 0 0 1.5px var(--line); display: flex; align-items: center; justify-content: center; font-size: 33px; line-height: 1; transition: transform .15s; }
+.cu:active .ci { transform: scale(.93); }
+.cu .ci .fl { position: absolute; right: -1px; bottom: -1px; }
+.cu .ci svg { width: 22px; height: 22px; display: block; }
+.cu .ci.all { font-size: 26px; color: var(--accent); }
+.hsec { display: flex; flex-direction: column; gap: 10px; }
+.hsec .hh { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.hsec .hh button { background: none; border: 0; color: var(--accent); font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; padding: 0; white-space: nowrap; }
+.hcard { flex: none; width: 204px; scroll-snap-align: start; display: flex; flex-direction: column; gap: 2px; text-align: left; background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.hcard .hph { position: relative; width: 204px; height: 134px; border-radius: 18px; overflow: hidden; display: block; box-shadow: var(--shadow); margin-bottom: 7px; }
+.hcard .hph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hcard .hfill { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 54px; background: linear-gradient(140deg, hsl(var(--h) var(--hs) var(--hl1)), hsl(var(--h) var(--hs) var(--hl2))); }
+.hcard .badge { position: absolute; top: 9px; left: 9px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.hcard .hrt { position: absolute; top: 8px; right: 9px; width: 30px; height: 30px; border-radius: 50%; background: var(--surface); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.hcard b { font-size: 15.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hcard .sub { font-size: 13px; color: var(--muted); display: flex; gap: 5px; align-items: center; white-space: nowrap; overflow: hidden; }
+.hcard .flags { display: inline-flex; gap: 2px; flex: none; }
+.hcard .flags svg { width: 14px; height: 14px; display: block; }
+.hcard:active .hph { transform: scale(.98); }
+.maphead { display: flex; justify-content: space-between; align-items: baseline; }
+
+.tfill { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 27px; background: linear-gradient(140deg, hsl(var(--h) var(--hs) var(--hl1)), hsl(var(--h) var(--hs) var(--hl2))); }
+/* ===== Weergave-instelling ===== */
+.thopts { display: flex; flex-direction: column; gap: 10px; }
+.thopt { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; background: var(--bg); border: 2px solid var(--line); border-radius: 16px; padding: 12px 14px; color: inherit; font: inherit; cursor: pointer; }
+.thopt[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.thopt .sw { flex: none; width: 46px; height: 46px; border-radius: 12px; border: 1px solid rgba(128,128,128,.35); position: relative; overflow: hidden; }
+.thopt .sw i { position: absolute; left: 8px; right: 8px; bottom: 8px; height: 10px; border-radius: 5px; background: #D9442A; }
+.thopt .tx { flex: 1; display: flex; flex-direction: column; }
+.thopt .tx b { font-size: 16px; }
+.thopt .tx span { font-size: 13px; color: var(--muted); }
+.thopt .ck { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: transparent; }
+.thopt[aria-checked="true"] .ck { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+
+/* openingsscherm (zoals bij TheFork): muts verschijnt, daarna wordt de naam geschreven */
+#splash { position: fixed; inset: 0; z-index: 100; background: #D9442A; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; animation: sp-out .45s ease-in 2.15s forwards; }
+#splash .sp-hat { width: 132px; height: auto; opacity: 0; transform: scale(.4) rotate(-12deg); animation: sp-hat .7s cubic-bezier(.34,1.56,.64,1) .15s forwards; }
+#splash .sp-word { width: 230px; height: auto; clip-path: inset(0 100% 0 0); animation: sp-write .9s cubic-bezier(.65,0,.35,1) .85s forwards; }
+#splash.gone { display: none; }
+@keyframes sp-hat { to { opacity: 1; transform: none; } }
+@keyframes sp-write { to { clip-path: inset(0 0 0 0); } }
+@keyframes sp-out { to { opacity: 0; transform: scale(1.06); visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) {
+  #splash { animation: sp-out .3s ease-in .6s forwards; }
+  #splash .sp-hat, #splash .sp-word { animation: none; opacity: 1; transform: none; clip-path: none; }
+}
 </style>
 </head>
 <body>
+<div id="splash" aria-hidden="true"><img class="sp-hat" src="lib/splash/hat.png" alt=""><img class="sp-word" src="lib/splash/wordmark.png" alt=""></div>
+<script>
+(function () {
+  var sp = document.getElementById('splash');
+  function done() { if (sp) sp.className = 'gone'; }
+  sp.addEventListener('animationend', function (e) { if (e.target === sp) done(); });
+  sp.addEventListener('click', done);
+  setTimeout(done, 3200);
+})();
+</script>
 <div class="app">
   <header>
-    <h1 class="brand"><img class="logo" src="logo.png" alt="Smaakkaart"></h1>
+    <h1 class="brand"><img class="logo lt" src="logo.png" alt="Smaakkaart"><img class="logo dk" src="logo-dark.png" alt="Smaakkaart"></h1>
     <div class="who" id="who" hidden></div>
   </header>
   <p class="notice" id="status" hidden></p>
@@ -327,8 +452,10 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
   </section>
 
   <div id="main" hidden>
-  <section id="tab-map" aria-label="Kaart">
+  <section id="tab-map" aria-label="Start">
     <div class="stack">
+      <div id="home-top" class="stack"></div>
+      <div class="maphead"><h2>Op de kaart</h2></div>
       <div class="mapwrap">
         <div id="map" role="region" aria-label="Kaart met restaurants"></div>
         <div class="zoom"><button type="button" id="zreset" class="small" aria-label="Alle restaurants in beeld">Alles</button><button type="button" id="zfriends" class="small" aria-pressed="false" hidden>Alleen vrienden</button></div>
@@ -343,6 +470,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       </div>
       <p class="small-note">Kaart van OpenStreetMap (via OpenFreeMap). Sleep om te verschuiven, knijp of gebruik + en − om te zoomen.</p>
       <div class="card" id="detail"></div>
+      <div id="home-more" class="stack"></div>
       <div class="card">
         <h3>Alle restaurants</h3>
         <div id="list"></div>
@@ -460,6 +588,11 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       <div id="f-res"></div>
       <div id="f-list"></div>
     </div>
+    <div class="card" id="themecard">
+      <h2>Weergave</h2>
+      <p class="small-note" style="margin:0">Kies hoe Smaakkaart eruitziet. Je keuze wordt op dit apparaat onthouden.</p>
+      <div class="thopts" id="thopts" role="radiogroup" aria-label="Weergave"></div>
+    </div>
     <div class="card" id="revcard">
       <h2>★ Mijn reviews</h2>
       <div id="rev-list"></div>
@@ -471,7 +604,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
 
 <nav class="tabs" id="nav" aria-label="Hoofdmenu" hidden>
   <div class="inner" role="tablist">
-    <button type="button" role="tab" id="t-map" aria-selected="true" data-tab="map"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg><span class="tl">Kaart</span></button>
+    <button type="button" role="tab" id="t-map" aria-selected="true" data-tab="map"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-6h-6v6H5.5A1.5 1.5 0 0 1 4 19z"/></svg><span class="tl">Start</span></button>
     <button type="button" role="tab" id="t-search" aria-selected="false" data-tab="search"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><span class="tl">Zoeken</span></button>
     <button type="button" role="tab" id="t-ask" aria-selected="false" data-tab="ask"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span class="tl">Vraag de AI</span></button>
     <button type="button" role="tab" id="t-review" aria-selected="false" data-tab="review"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg><span class="tl">Review</span></button>
@@ -631,7 +764,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
     return load().then(syncSocial).then(function () {
       setStatus('');
       if (!selected || !byId(selected)) selected = R.length ? R.slice().sort(function (a, b) { return avg(b) - avg(a); })[0].id : null;
-      drawPins(); renderDetail(); renderList();
+      drawPins(); renderDetail(); renderList(); renderHome();
       if (map && !fitted && R.length) { fitAll(false); fitted = true; }
     }).catch(function (e) {
       var m = niceErr(e);
@@ -1041,7 +1174,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
   function thumb(r) {
     var p = photosOf(r).filter(function (x) { return x.data; })[0];
     if (p) return '<img src="' + esc(p.data) + '" alt="" loading="lazy">';
-    return '<span class="initial" style="background:hsl(' + hash(r.name) + ' 32% 46%)">' + esc(r.name.charAt(0).toUpperCase()) + '</span>';
+    return '<span class="tfill" style="--h:' + hue(r.name) + '">' + emo(r.cuisine) + '</span>';
   }
   function renderList() {
     var box = $('#list');
@@ -1202,7 +1335,7 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
     var ex = wlHas(w.naam, w.lat, w.lon);
     var p = ex ? sb.from('wishlist').delete().eq('id', ex.id).then(function (r) { if (!r.error) WL = WL.filter(function (x) { return x.id !== ex.id; }); return r; })
       : sb.from('wishlist').insert({ user_id: me.id, naam: w.naam, stad: w.stad || null, straat: w.straat || null, keuken: w.keuken || null, lat: w.lat, lon: w.lon }).select().then(function (r) { if (!r.error) WL.push((r.data && r.data[0]) || w); return r; });
-    p.then(function (r) { if (r.error) { toast('Mislukt: ' + niceErr(r.error)); return; } toast(ex ? 'Van je lijstje gehaald' : 'Op je lijstje gezet'); if (done) done(); drawPins(); renderWL(); });
+    p.then(function (r) { if (r.error) { toast('Mislukt: ' + niceErr(r.error)); return; } toast(ex ? 'Van je lijstje gehaald' : 'Op je lijstje gezet'); if (done) done(); drawPins(); renderWL(); renderHome(); });
   }
   function renderWL() {
     var b = $('#wl-list'); if (!b) return;
@@ -1227,7 +1360,8 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
     mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/>',
     store: '<path d="M4 9l1.5-5h13L20 9"/><path d="M4 9a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0A2.7 2.7 0 0 0 20 9"/><path d="M5.5 12v8h13v-8"/>',
     clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
-    chev: '<path d="M9 5l7 7-7 7"/>'
+    chev: '<path d="M9 5l7 7-7 7"/>',
+    moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>'
   };
   function ic(n, s) { return '<svg viewBox="0 0 24 24" width="' + (s || 24) + '" height="' + (s || 24) + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICO[n] + '</svg>'; }
 
@@ -1317,16 +1451,18 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
       '<p class="msec">Je activiteit</p>' + mrow('wl', 'heart', 'Mijn hartjes', WL.length) + mrow('rev', 'star', 'Mijn reviews', myRevs().length) +
       mrow('fr', 'users', 'Vrienden', nf, inc ? '<span class="nbadge">' + inc + '</span>' : '') +
       '<p class="msec">Over jou</p>' + mrow('me', 'user', 'Persoonlijke gegevens', '') +
+      '<p class="msec">Instellingen</p>' + mrow('theme', 'moon', 'Weergave', THEMES[themePref()].naam) +
       '<p class="msec">Account</p>' + (me.anon ? mrow('link', 'mail', 'E-mailadres koppelen', '') : '') + mrow('out', 'out', 'Uitloggen', '');
     if (PD && PD.avatar_pad) avUrl(PD.avatar_pad).then(function (u) { var a = $('#m-av'); if (u && a) a.innerHTML = avHtml(u, me.naam); });
   }
   function pshow(n) {
     psubName = n;
     $('#pmenu').hidden = !!n; $('#psub').hidden = !n;
-    ['pform', 'wl-card', 'friends', 'revcard'].forEach(function (id) { $('#' + id).hidden = true; });
-    var m = { me: 'pform', wl: 'wl-card', fr: 'friends', rev: 'revcard' }[n]; if (m) $('#' + m).hidden = false;
+    ['pform', 'wl-card', 'friends', 'revcard', 'themecard'].forEach(function (id) { $('#' + id).hidden = true; });
+    var m = { me: 'pform', wl: 'wl-card', fr: 'friends', rev: 'revcard', theme: 'themecard' }[n]; if (m) $('#' + m).hidden = false;
     if (n === 'rev') renderMyRevs();
     if (n === 'wl') renderWL();
+    if (n === 'theme') renderTheme();
     if (!n) renderPMenu();
     window.scrollTo(0, 0);
   }
@@ -1342,6 +1478,109 @@ input[type=email] { width:100%; background:var(--bg); border:1px solid var(--lin
     else if (n === 'link') { openLink(); }
     else pshow(n);
   });
+
+
+  /* ---------- weergave: automatisch, licht, donker, zwart ---------- */
+  var THEMES = {
+    auto: { naam: 'Automatisch', uitleg: 'Volgt de instelling van je telefoon', sw: 'linear-gradient(135deg,#FBF6EF 50%,#15100D 50%)' },
+    licht: { naam: 'Licht', uitleg: 'Lichte achtergrond, ook in het donker', sw: '#FBF6EF' },
+    donker: { naam: 'Donker', uitleg: 'Warm donkerbruin, rustig voor je ogen', sw: '#211915' },
+    zwart: { naam: 'Zwart', uitleg: 'Helemaal zwart, bespaart batterij op OLED-schermen', sw: '#000000' }
+  };
+  function themePref() { var t = ls('thema'); return THEMES[t] ? t : 'auto'; }
+  function applyTheme(t) {
+    var d = document.documentElement, wasDark = isDark();
+    if (t === 'licht') d.setAttribute('data-theme', 'light');
+    else if (t === 'donker' || t === 'zwart') d.setAttribute('data-theme', 'dark');
+    else d.removeAttribute('data-theme');
+    if (t === 'zwart') d.setAttribute('data-black', '1'); else d.removeAttribute('data-black');
+    themeColor();
+    if (map && wasDark !== isDark()) pickStyle().then(function (st) { map.setStyle(st); map.once('styledata', dutchNames); });
+  }
+  function themeColor() {
+    var m = document.querySelector('meta[name="theme-color"]'), sp = document.getElementById('splash');
+    if (m && (!sp || sp.className === 'gone')) m.setAttribute('content', getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#FBF6EF');
+  }
+  function renderTheme() {
+    var cur = themePref();
+    $('#thopts').innerHTML = Object.keys(THEMES).map(function (k) {
+      var t = THEMES[k];
+      return '<button type="button" class="thopt" role="radio" data-th="' + k + '" aria-checked="' + (k === cur) + '"><span class="sw" style="background:' + t.sw + '"><i></i></span><span class="tx"><b>' + t.naam + '</b><span>' + t.uitleg + '</span></span><span class="ck">✓</span></button>';
+    }).join('');
+  }
+  $('#thopts').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-th]'); if (!b) return;
+    ls('thema', b.dataset.th === 'auto' ? null : b.dataset.th);
+    applyTheme(b.dataset.th); renderTheme();
+  });
+  if (window.matchMedia) {
+    var mq = matchMedia('(prefers-color-scheme: dark)'), onMq = function () { if (themePref() === 'auto') { var was = !mq.matches; applyTheme('auto'); } };
+    if (mq.addEventListener) mq.addEventListener('change', onMq); else if (mq.addListener) mq.addListener(onMq);
+  }
+  (function () { var sp = document.getElementById('splash'); if (!sp || sp.className === 'gone') themeColor(); else { sp.addEventListener('animationend', function () { setTimeout(themeColor, 0); }); setTimeout(themeColor, 3300); } })();
+
+  /* ---------- Voor jou (startpagina) ---------- */
+  var EMO = { Spaans: '🥘', Italiaans: '🍕', Japans: '🍣', Grieks: '🫒', Frans: '🥐', Nederlands: '🧀', Mediterraan: '🍅', Europees: '🍽️', Wereldkeuken: '🌍',
+    Amerikaans: '🍔', Argentijns: '🥩', Belgisch: '🍟', Braziliaans: '🍖', Brits: '🫖', Chinees: '🥟', Duits: '🥨', Egyptisch: '🧆', Ethiopisch: '🍲',
+    Indiaas: '🍛', Indonesisch: '🍢', 'Israëlisch': '🧆', Koreaans: '🥢', Libanees: '🥙', Marokkaans: '🍲', Mexicaans: '🌮', Peruaans: '🐟', Pools: '🥟',
+    Portugees: '🦐', Surinaams: '🌶️', Thais: '🍤', Turks: '🥙', Vietnamees: '🍜', Zwitsers: '🫕' };
+  function emo(c) { return EMO[canonCuisine(c)] || '🍽️'; }
+  function hue(name) { return 8 + hash(name) % 42; }
+  function hcard(r, extra) {
+    var s = avg(r), p = photosOf(r).filter(function (x) { return x.data; })[0];
+    var ph = p ? '<img src="' + esc(p.data) + '" alt="" loading="lazy">' : '<span class="hfill" style="--h:' + hue(r.name) + '">' + emo(r.cuisine) + '</span>';
+    var heart = me && wlHas(r.name, r.lat, r.lon) ? '<span class="hrt" aria-label="Op je lijstje">♥</span>' : '';
+    return '<button type="button" class="hcard" data-open="' + esc(r.id) + '"><span class="hph">' + ph + '<span class="badge l' + level(s) + '">' + fmt(s) + '</span>' + heart + '</span>' +
+      '<b>' + esc(r.name) + '</b><span class="sub">' + flagRow(r.flags) + esc(r.cuisine || 'Keuken onbekend') + (r.city ? ' · ' + esc(r.city) : '') + '</span>' + (extra || '') + '</button>';
+  }
+  function wcard(w) {
+    var r = R.filter(function (x) { return norm(x.name) === norm(w.naam) && dist(x.lon, x.lat, w.lon, w.lat) < 0.3; })[0];
+    if (r) return hcard(r);
+    return '<button type="button" class="hcard" data-wish="' + esc(w.naam) + '"><span class="hph"><span class="hfill" style="--h:' + hue(w.naam) + '">' + emo(w.keuken) + '</span><span class="hrt">♥</span></span>' +
+      '<b>' + esc(w.naam) + '</b><span class="sub">' + flagRow(flagsFor(w.keuken)) + esc([w.keuken, w.stad].filter(Boolean).join(' · ') || 'Nog geen review') + '</span></button>';
+  }
+  function hsec(title, cards, more) {
+    if (!cards.length) return '';
+    return '<div class="hsec"><div class="hh"><h2>' + title + '</h2>' + (more ? '<button type="button" data-more="' + more + '">Alles</button>' : '') + '</div><div class="hscroll">' + cards.join('') + '</div></div>';
+  }
+  function firstAt(r) { return r.reviews.length ? new Date(r.reviews[0].at) : 0; }
+  function renderHome() {
+    var top = $('#home-top'), more = $('#home-more'); if (!top) return;
+    var h = '<h2 class="hello">Waar gaan we eten' + (me && me.naam && me.naam !== 'Gast' ? ', <span>' + esc(me.naam.split(' ')[0]) + '</span>' : '') + '?</h2>';
+    var cu = {}; R.forEach(function (r) { if (r.cuisine) cu[r.cuisine] = (cu[r.cuisine] || 0) + 1; });
+    var ck = Object.keys(cu).sort(function (a, b) { return cu[b] - cu[a] || a.localeCompare(b); });
+    if (ck.length) h += '<div class="hscroll" role="list" aria-label="Keukens">' +
+      '<button type="button" class="cu" data-cu="__all" role="listitem"><span class="ci all">' + ic('store', 28) + '</span>Alles</button>' +
+      ck.map(function (k) { var f = flagsFor(k)[0]; return '<button type="button" class="cu" data-cu="' + esc(k) + '" role="listitem"><span class="ci">' + emo(k) + (f ? '<span class="fl">' + flagSvg(f) + '</span>' : '') + '</span>' + esc(k) + '</button>'; }).join('') + '</div>';
+    var tops = R.slice().sort(function (a, b) { return avg(b) - avg(a); }).slice(0, 10);
+    h += hsec('Toppers', tops.map(function (r) { return hcard(r); }), 'all');
+    if (me && FRIENDIDS.length) {
+      var fr = R.filter(function (r) { return r.reviews.some(function (v) { return FRIENDIDS.indexOf(v.uid) > -1; }); })
+        .sort(function (a, b) { var la = function (r) { return Math.max.apply(null, r.reviews.filter(function (v) { return FRIENDIDS.indexOf(v.uid) > -1; }).map(function (v) { return +new Date(v.at); })); }; return la(b) - la(a); }).slice(0, 10);
+      h += hsec('Van je vrienden', fr.map(function (r) { return hcard(r); }));
+    }
+    top.innerHTML = R.length ? h : '';
+    var m = '';
+    var nw = R.slice().sort(function (a, b) { return firstAt(b) - firstAt(a); }).slice(0, 10);
+    if (R.length > 3) m += hsec('Nieuw op Smaakkaart', nw.map(function (r) { return hcard(r); }));
+    if (me && WL.length) m += hsec('Wil ik nog proberen', WL.slice().reverse().map(wcard), 'hearts');
+    more.innerHTML = m;
+  }
+  function homeClick(e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.open) { select(b.dataset.open, true); var mw = document.querySelector('.maphead'); if (mw) mw.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth' }); }
+    else if (b.dataset.wish) { toast('♥ ' + b.dataset.wish + ' staat op je lijstje. Nog niemand heeft hier een review geschreven.'); }
+    else if (b.dataset.cu) {
+      S = { loc: '', near: false, q: '', all: false, hearts: false, sort: 'score' }; $('#s-loc').value = '';
+      if (b.dataset.cu === '__all') S.all = true; else S.q = b.dataset.cu;
+      $('#s-q').value = S.q; tab('search');
+    }
+    else if (b.dataset.more) {
+      S = { loc: '', near: false, q: '', all: b.dataset.more === 'all', hearts: b.dataset.more === 'hearts', sort: 'score' }; $('#s-q').value = ''; $('#s-loc').value = ''; tab('search');
+    }
+  }
+  $('#home-top').addEventListener('click', homeClick);
+  $('#home-more').addEventListener('click', homeClick);
 
   /* ---------- tabs ---------- */
   function tab(name) {
