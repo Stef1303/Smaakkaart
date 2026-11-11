@@ -14,6 +14,7 @@
   else if (t === 'donker' || t === 'zwart') d.setAttribute('data-theme', 'dark');
   if (t === 'zwart') d.setAttribute('data-black', '1'); } catch (e) {} })();
 </script>
+<script src="lib/i18n.js"></script>
 <link rel="stylesheet" href="lib/maplibre-gl.css">
 <link rel="preload" href="lib/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="lib/fonts/jakarta.woff2" as="font" type="font/woff2" crossorigin>
@@ -355,6 +356,8 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
 .maphead { display: flex; justify-content: space-between; align-items: baseline; }
 
 .tfill { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 27px; background: linear-gradient(140deg, hsl(var(--h) var(--hs) var(--hl1)), hsl(var(--h) var(--hs) var(--hl2))); }
+.langbtn { align-self: flex-end; background: var(--bg); border: 1.5px solid var(--line); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13.5px; font-weight: 700; color: inherit; cursor: pointer; margin-bottom: -6px; }
+.thopt .sw.flagsw { display: flex; align-items: center; justify-content: center; font-size: 28px; background: var(--surface); }
 /* ===== Weergave-instelling ===== */
 .thopts { display: flex; flex-direction: column; gap: 10px; }
 .thopt { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; background: var(--bg); border: 2px solid var(--line); border-radius: 16px; padding: 12px 14px; color: inherit; font: inherit; cursor: pointer; }
@@ -400,6 +403,7 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
   <p class="notice" id="status" hidden></p>
 
   <section id="gate" class="card" hidden>
+    <button type="button" class="langbtn" id="gate-lang" translate="no"></button>
     <h2 id="gate-title">Welkom bij Smaakkaart</h2>
     <div id="gatemenu" class="field">
       <p class="tagline">Eten dat jij en je vrienden goed vinden. Echte reviews, geen gesponsorde plekken.</p>
@@ -592,6 +596,11 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
       <h2>Weergave</h2>
       <p class="small-note" style="margin:0">Kies hoe Smaakkaart eruitziet. Je keuze wordt op dit apparaat onthouden.</p>
       <div class="thopts" id="thopts" role="radiogroup" aria-label="Weergave"></div>
+    </div>
+    <div class="card" id="langcard">
+      <h2>Taal</h2>
+      <p class="small-note" style="margin:0">Kies je taal. Reviews blijven in de taal waarin ze zijn geschreven.</p>
+      <div class="thopts" id="langopts" role="radiogroup" aria-label="Taal"></div>
     </div>
     <div class="card" id="revcard">
       <h2>★ Mijn reviews</h2>
@@ -994,7 +1003,7 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
         if (!tf) return;
         var s = JSON.stringify(tf);
         if (s.indexOf('name') < 0 || s.indexOf('"ref"') > -1) return;
-        map.setLayoutProperty(l.id, 'text-field', ['coalesce', ['get', 'name:nl'], ['get', 'name']]);
+        map.setLayoutProperty(l.id, 'text-field', ['coalesce', ['get', 'name:' + (window.I18N ? I18N.get() : 'nl')], ['get', 'name']]);
       });
     } catch (e) {}
   }
@@ -1052,7 +1061,7 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
         var mine = me && v.uid === me.id;
         if (mine && editing === v.id) return editorHtml(v);
         var left = hoursLeft(v);
-        return '<div class="review"><div class="top"><span><button type="button" class="whobtn" data-prof="' + esc(v.uid) + '" data-pn="' + esc(v.who) + '">' + esc(v.who) + '</button> <span class="when">' + esc(when(v.at)) + (v.edited ? ' · bewerkt' : '') + '</span></span><span>' + fmt(v.score) + '</span></div>' + (v.text ? '<p>' + esc(v.text) + '</p>' : '') +
+        return '<div class="review"><div class="top"><span><button type="button" class="whobtn" data-prof="' + esc(v.uid) + '" data-pn="' + esc(v.who) + '">' + esc(v.who) + '</button> <span class="when">' + esc(when(v.at)) + (v.edited ? ' · bewerkt' : '') + '</span></span><span>' + fmt(v.score) + '</span></div>' + (v.text ? '<p translate="no">' + esc(v.text) + '</p>' : '') +
           (mine ? '<div class="revbtns">' + (left > 0 ? '<button type="button" class="editrev" data-id="' + esc(v.id) + '">Bewerk <span class="when">(nog ' + left + ' uur)</span></button>' : '') +
             '<button type="button" class="delrev" data-id="' + esc(v.id) + '">Verwijder mijn review</button></div>' : '') + '</div>';
       }).join('') +
@@ -1204,14 +1213,14 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
       PD = (res.data && res.data[0]) || { zichtbaarheid: 'vrienden', keukens: [] };
       pK = (PD.keukens || []).slice(); avBlob = null; avGone = false;
       $('#p-naam').value = me.naam; $('#p-stad').value = PD.woonplaats || ''; $('#p-bio').value = PD.bio || ''; $('#p-vis').value = PD.zichtbaarheid || 'vrienden';
-      $('#p-keukens').innerHTML = allCu().map(function (k) { return '<button type="button" aria-pressed="' + (pK.indexOf(k) > -1) + '">' + esc(k) + '</button>'; }).join('');
+      $('#p-keukens').innerHTML = allCu().map(function (k) { return '<button type="button" data-k="' + esc(k) + '" aria-pressed="' + (pK.indexOf(k) > -1) + '">' + esc(k) + '</button>'; }).join('');
       $('#p-av').innerHTML = avHtml('', me.naam);
       avUrl(PD.avatar_pad).then(function (u) { if (u && !avBlob) $('#p-av').innerHTML = avHtml(u, me.naam); });
     });
   }
   $('#p-keukens').addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
-    var k = b.textContent, i = pK.indexOf(k);
+    var k = b.dataset.k || b.textContent, i = pK.indexOf(k);
     if (i > -1) pK.splice(i, 1); else pK.push(k);
     b.setAttribute('aria-pressed', i < 0 ? 'true' : 'false');
   });
@@ -1361,7 +1370,8 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
     store: '<path d="M4 9l1.5-5h13L20 9"/><path d="M4 9a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0A2.7 2.7 0 0 0 20 9"/><path d="M5.5 12v8h13v-8"/>',
     clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
     chev: '<path d="M9 5l7 7-7 7"/>',
-    moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>'
+    moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+    globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 3.6 5.4 3.6 8.5s-1.1 5.9-3.6 8.5c-2.5-2.6-3.6-5.4-3.6-8.5s1.1-5.9 3.6-8.5z"/>'
   };
   function ic(n, s) { return '<svg viewBox="0 0 24 24" width="' + (s || 24) + '" height="' + (s || 24) + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICO[n] + '</svg>'; }
 
@@ -1371,7 +1381,7 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
   function cities() { var m = {}; R.forEach(function (r) { if (r.city) m[r.city] = (m[r.city] || 0) + 1; }); return Object.keys(m).sort(); }
   function matchQ(r, q) {
     var t = norm(q).split(' ').filter(Boolean); if (!t.length) return true;
-    var hay = norm(r.name + ' ' + r.cuisine + ' ' + r.city);
+    var hay = norm(r.name + ' ' + r.cuisine + ' ' + r.city + ' ' + ((window.I18N && I18N.langs.en.dict[r.cuisine]) || ''));
     return t.every(function (w) {
       if (hay.indexOf(w) > -1) return true;
       return Object.keys(SYN).some(function (k) { return norm(k) === norm(r.cuisine) && SYN[k].indexOf(w) > -1; });
@@ -1451,18 +1461,19 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
       '<p class="msec">Je activiteit</p>' + mrow('wl', 'heart', 'Mijn hartjes', WL.length) + mrow('rev', 'star', 'Mijn reviews', myRevs().length) +
       mrow('fr', 'users', 'Vrienden', nf, inc ? '<span class="nbadge">' + inc + '</span>' : '') +
       '<p class="msec">Over jou</p>' + mrow('me', 'user', 'Persoonlijke gegevens', '') +
-      '<p class="msec">Instellingen</p>' + mrow('theme', 'moon', 'Weergave', THEMES[themePref()].naam) +
+      '<p class="msec">Instellingen</p>' + mrow('theme', 'moon', 'Weergave', THEMES[themePref()].naam) + mrow('lang', 'globe', 'Taal', langLabel(I18N.get())) +
       '<p class="msec">Account</p>' + (me.anon ? mrow('link', 'mail', 'E-mailadres koppelen', '') : '') + mrow('out', 'out', 'Uitloggen', '');
     if (PD && PD.avatar_pad) avUrl(PD.avatar_pad).then(function (u) { var a = $('#m-av'); if (u && a) a.innerHTML = avHtml(u, me.naam); });
   }
   function pshow(n) {
     psubName = n;
     $('#pmenu').hidden = !!n; $('#psub').hidden = !n;
-    ['pform', 'wl-card', 'friends', 'revcard', 'themecard'].forEach(function (id) { $('#' + id).hidden = true; });
-    var m = { me: 'pform', wl: 'wl-card', fr: 'friends', rev: 'revcard', theme: 'themecard' }[n]; if (m) $('#' + m).hidden = false;
+    ['pform', 'wl-card', 'friends', 'revcard', 'themecard', 'langcard'].forEach(function (id) { $('#' + id).hidden = true; });
+    var m = { me: 'pform', wl: 'wl-card', fr: 'friends', rev: 'revcard', theme: 'themecard', lang: 'langcard' }[n]; if (m) $('#' + m).hidden = false;
     if (n === 'rev') renderMyRevs();
     if (n === 'wl') renderWL();
     if (n === 'theme') renderTheme();
+    if (n === 'lang') renderLang();
     if (!n) renderPMenu();
     window.scrollTo(0, 0);
   }
@@ -1518,6 +1529,26 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
     if (mq.addEventListener) mq.addEventListener('change', onMq); else if (mq.addListener) mq.addListener(onMq);
   }
   (function () { var sp = document.getElementById('splash'); if (!sp || sp.className === 'gone') themeColor(); else { sp.addEventListener('animationend', function () { setTimeout(themeColor, 0); }); setTimeout(themeColor, 3300); } })();
+
+
+  /* ---------- taal ---------- */
+  function langLabel(l) { var x = I18N.langs[l]; return x.vlag + ' ' + x.naam; }
+  function renderLang() {
+    var cur = I18N.get();
+    $('#langopts').innerHTML = Object.keys(I18N.langs).map(function (k) {
+      var x = I18N.langs[k];
+      return '<button type="button" class="thopt" role="radio" data-lang="' + k + '" aria-checked="' + (k === cur) + '"><span class="sw flagsw">' + x.vlag + '</span><span class="tx" translate="no"><b>' + x.naam + '</b></span><span class="ck">✓</span></button>';
+    }).join('');
+  }
+  function gateLang() { var o = I18N.get() === 'nl' ? 'en' : 'nl'; $('#gate-lang').textContent = langLabel(o); $('#gate-lang').dataset.to = o; }
+  $('#langopts').addEventListener('click', function (e) { var b = e.target.closest('[data-lang]'); if (b) I18N.set(b.dataset.lang); });
+  $('#gate-lang').addEventListener('click', function () { I18N.set(this.dataset.to); });
+  document.addEventListener('taal', function () {
+    renderLang(); gateLang(); drawExamples();
+    if (!$('#pmenu').hidden) renderPMenu();
+    if (map && map.isStyleLoaded()) dutchNames();
+  });
+  gateLang();
 
   /* ---------- Voor jou (startpagina) ---------- */
   var EMO = { Spaans: '🥘', Italiaans: '🍕', Japans: '🍣', Grieks: '🫒', Frans: '🥐', Nederlands: '🧀', Mediterraan: '🍅', Europees: '🍽️', Wereldkeuken: '🌍',
@@ -1608,15 +1639,15 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
   function parse(text) {
     var t = norm(text), q = { cuisines: [], price: null, sfeer: false, min: null };
     Object.keys(CUISINES).forEach(function (k) {
-      var words = [norm(k)].concat(SYN[k] || []);
+      var en = window.I18N && I18N.langs.en.dict[k], words = [norm(k)].concat(en ? [norm(en)] : [], SYN[k] || []);
       if (words.some(function (w) { return t.indexOf(w) > -1; })) q.cuisines.push(k);
     });
     R.forEach(function (r) { if (r.cuisine && !CUISINES[r.cuisine] && t.indexOf(norm(r.cuisine)) > -1 && q.cuisines.indexOf(r.cuisine) < 0) q.cuisines.push(r.cuisine); });
-    if (/(lage prijs|laag|goedkoop|budget|betaalbaar|niet duur)/.test(t)) q.price = 1;
-    else if (/(middelmatig|gemiddeld|middenklasse)/.test(t)) q.price = 2;
-    else if (/(duur mag|luxe|chique|bijzonder|hoge prijs)/.test(t)) q.price = 3;
-    if (/(sfeer|gezellig|knus)/.test(t)) q.sfeer = true;
-    var m = t.match(/(\d+) (min|minuten)/);
+    if (/(lage prijs|laag|goedkoop|budget|betaalbaar|niet duur|cheap|low price|affordable|inexpensive)/.test(t)) q.price = 1;
+    else if (/(middelmatig|gemiddeld|middenklasse|mid range|midrange|average|moderate)/.test(t)) q.price = 2;
+    else if (/(duur mag|luxe|chique|bijzonder|hoge prijs|expensive|pricey|fancy|luxury|special|upscale|fine dining)/.test(t)) q.price = 3;
+    if (/(sfeer|gezellig|knus|atmosphere|cozy|cosy|ambiance|ambience|vibe)/.test(t)) q.sfeer = true;
+    var m = t.match(/(\d+) (min|minuten|minutes|mins)/);
     if (m) q.min = parseInt(m[1], 10);
     return q;
   }
@@ -1646,7 +1677,7 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
       var last = r.reviews[r.reviews.length - 1];
       html += '<div class="res"><div class="head"><b>' + esc(r.name) + '</b><span class="badge l' + level(avg(r)) + '">' + fmt(avg(r)) + '</span></div>' +
         '<p class="interp">' + esc(r.cuisine) + ' · ' + eur(r.price) + ' · sfeer ' + r.sfeer + ' van 5 · ca. ' + r.min + ' min rijden · ' + esc(r.city) + '</p>' +
-        (last && last.text ? '<p class="quote">' + esc(last.who) + ' zegt: ' + esc(last.text) + '</p>' : '') +
+        (last && last.text ? '<p class="quote">' + esc(last.who) + ' zegt: <span translate="no">' + esc(last.text) + '</span></p>' : '') +
         linksHtml(r, '<button class="btn ghost small" type="button" data-open="' + esc(r.id) + '">Toon op kaart</button>') + '</div>';
     });
     near.forEach(function (r) {
@@ -1655,11 +1686,16 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
     out.innerHTML = html;
     out.querySelectorAll('[data-open]').forEach(function (b) { b.addEventListener('click', function () { select(b.dataset.open, true); tab('map'); }); });
   }
-  EXAMPLES.forEach(function (e) {
-    var b = document.createElement('button'); b.type = 'button'; b.textContent = e.length > 46 ? e.slice(0, 44) + '…' : e;
-    b.addEventListener('click', function () { $('#q').value = e; ask(); });
-    $('#examples').appendChild(b);
-  });
+  function drawExamples() {
+    $('#examples').innerHTML = '';
+    EXAMPLES.forEach(function (e) {
+      var tx = window.I18N ? I18N.t(e) : e;
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = tx.length > 46 ? tx.slice(0, 44) + '…' : tx;
+      b.addEventListener('click', function () { $('#q').value = window.I18N ? I18N.t(e) : e; ask(); });
+      $('#examples').appendChild(b);
+    });
+  }
+  drawExamples();
   $('#askbtn').addEventListener('click', ask);
 
   /* ---------- restaurants zoeken op de kaart (OpenStreetMap Nominatim) ---------- */
@@ -1791,7 +1827,7 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
     var h = '<div class="ch-top"><div><b>' + esc(chosen.name) + '</b><p class="small-note">' + where + '</p></div>' + (chosen.kind === 'existing' ? '<span class="tag">Staat al op de kaart</span>' : '<span class="tag new">Nieuw restaurant</span>') + '</div>';
     if (chosen.kind === 'new') {
       var extra = Object.keys(CUISINES).filter(function (k) { return CORE.indexOf(k) < 0; }).sort();
-      var opts = '<option value="">Kies keuken</option>' + CORE.concat(extra).map(function (k) { return '<option' + (k === chosen.cuisine ? ' selected' : '') + '>' + k + '</option>'; }).join('') + '<option value="__anders">Anders…</option>';
+      var opts = '<option value="">Kies keuken</option>' + CORE.concat(extra).map(function (k) { return '<option value="' + esc(k) + '"' + (k === chosen.cuisine ? ' selected' : '') + '>' + esc(k) + '</option>'; }).join('') + '<option value="__anders">Anders…</option>';
       h += '<p class="small-note">' + (chosen.auto ? 'Plek en adres komen van de kaart.' : 'De pin komt op de gevonden plek.') + ' Controleer de rest even.</p>' +
         '<div class="newfields"><label for="rv-keuken">Keuken<select id="rv-keuken">' + opts + '</select></label>' +
         '<label for="rv-prijs">Prijs<select id="rv-prijs"><option value="1">€</option><option value="2" selected>€€</option><option value="3">€€€</option></select></label>' +
