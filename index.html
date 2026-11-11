@@ -358,6 +358,9 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
 .tfill { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 27px; background: linear-gradient(140deg, hsl(var(--h) var(--hs) var(--hl1)), hsl(var(--h) var(--hs) var(--hl2))); }
 .langbtn { align-self: flex-end; background: var(--bg); border: 1.5px solid var(--line); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13.5px; font-weight: 700; color: inherit; cursor: pointer; margin-bottom: -6px; }
 .thopt .sw.flagsw { display: flex; align-items: center; justify-content: center; font-size: 28px; background: var(--surface); }
+.vtbtn { align-self: flex-start; background: none; border: 0; padding: 2px 0; color: var(--accent); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
+.vtbtn::before { content: ''; width: 14px; height: 14px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 5h8M8 3v2m2.5 0C10 9 7 12 4 13.5M6 8.5c1 2 3 3.5 5 4.5'/%3E%3Cpath d='M12 21l4.5-10L21 21m-7.5-3h6'/%3E%3C/svg%3E") center/contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 5h8M8 3v2m2.5 0C10 9 7 12 4 13.5M6 8.5c1 2 3 3.5 5 4.5'/%3E%3Cpath d='M12 21l4.5-10L21 21m-7.5-3h6'/%3E%3C/svg%3E") center/contain no-repeat; }
+.vtbtn.on::after { content: ' · DeepL'; font-weight: 500; color: var(--muted); }
 /* ===== Weergave-instelling ===== */
 .thopts { display: flex; flex-direction: column; gap: 10px; }
 .thopt { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; background: var(--bg); border: 2px solid var(--line); border-radius: 16px; padding: 12px 14px; color: inherit; font: inherit; cursor: pointer; }
@@ -757,6 +760,7 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
       return signed(paths).catch(function () { return {}; }).then(function (m) {
         rests.forEach(function (r) { r.reviews.forEach(function (v) { v.photos.forEach(function (p) { p.data = m[p.path] || ''; }); }); });
         R = rests.filter(function (r) { return r.reviews.length; });
+        sb.from('review_vertalingen').select('review_id,taal,tekst,bron_taal').then(function (x) { VT = {}; ((x && x.data) || []).forEach(function (t) { VT[t.review_id + ':' + t.taal] = t; VB[t.review_id] = t.bron_taal; }); if (selected) renderDetail(); });
         lastLoad = Date.now();
       });
     });
@@ -1061,7 +1065,7 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
         var mine = me && v.uid === me.id;
         if (mine && editing === v.id) return editorHtml(v);
         var left = hoursLeft(v);
-        return '<div class="review"><div class="top"><span><button type="button" class="whobtn" data-prof="' + esc(v.uid) + '" data-pn="' + esc(v.who) + '">' + esc(v.who) + '</button> <span class="when">' + esc(when(v.at)) + (v.edited ? ' · bewerkt' : '') + '</span></span><span>' + fmt(v.score) + '</span></div>' + (v.text ? '<p translate="no">' + esc(v.text) + '</p>' : '') +
+        return '<div class="review"><div class="top"><span><button type="button" class="whobtn" data-prof="' + esc(v.uid) + '" data-pn="' + esc(v.who) + '">' + esc(v.who) + '</button> <span class="when">' + esc(when(v.at)) + (v.edited ? ' · bewerkt' : '') + '</span></span><span>' + fmt(v.score) + '</span></div>' + (v.text ? '<p translate="no" class="rvtext" data-rv="' + esc(v.id) + '">' + esc(v.text) + '</p>' + vtHtml(v) : '') +
           (mine ? '<div class="revbtns">' + (left > 0 ? '<button type="button" class="editrev" data-id="' + esc(v.id) + '">Bewerk <span class="when">(nog ' + left + ' uur)</span></button>' : '') +
             '<button type="button" class="delrev" data-id="' + esc(v.id) + '">Verwijder mijn review</button></div>' : '') + '</div>';
       }).join('') +
@@ -1531,6 +1535,46 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
   (function () { var sp = document.getElementById('splash'); if (!sp || sp.className === 'gone') themeColor(); else { sp.addEventListener('animationend', function () { setTimeout(themeColor, 0); }); setTimeout(themeColor, 3300); } })();
 
 
+
+  /* ---------- reviews vertalen (DeepL via Supabase) ---------- */
+  var VT = {}, VB = {}, VSHOW = {};
+  function vtHtml(v) {
+    var l = I18N.get();
+    if (VB[v.id] === l) return '';
+    return '<button type="button" class="vtbtn" data-vt="' + esc(v.id) + '">' + (VSHOW[v.id] ? 'Toon origineel' : 'Vertaal') + '</button>';
+  }
+  function vtPaint(id, txt, on) {
+    var p = document.querySelector('.rvtext[data-rv="' + id + '"]'), b = document.querySelector('.vtbtn[data-vt="' + id + '"]');
+    if (p) p.textContent = txt;
+    if (b) { b.disabled = false; b.textContent = on ? 'Toon origineel' : 'Vertaal'; b.classList.toggle('on', !!on); }
+  }
+  function origOf(id) { var o = null; R.forEach(function (r) { r.reviews.forEach(function (v) { if (v.id === id) o = v.text; }); }); return o; }
+  $('#detail').addEventListener('click', function (e) {
+    var b = e.target.closest('.vtbtn'); if (!b) return;
+    var id = b.dataset.vt, l = I18N.get(), key = id + ':' + l;
+    if (VSHOW[id]) { VSHOW[id] = false; vtPaint(id, origOf(id), false); return; }
+    var show = function (t) {
+      if (t.zelfde || t.bron_taal === l || t.bron === l) { VB[id] = l; b.remove(); toast('Deze review is al in jouw taal.'); return; }
+      VSHOW[id] = true; vtPaint(id, t.tekst, true);
+    };
+    if (VT[key]) { show(VT[key]); return; }
+    b.disabled = true; b.textContent = 'Vertalen…';
+    sb.functions.invoke('vertaal', { body: { review_id: id, taal: l } }).then(function (res) {
+      var d = res.data;
+      if (res.error || !d || d.fout) {
+        var f = (d && d.fout) || '';
+        if (!f && res.error && res.error.context && res.error.context.json) return res.error.context.json().then(function (j) { throw j; });
+        throw d || res.error;
+      }
+      VT[key] = { tekst: d.tekst, bron_taal: d.bron, zelfde: d.zelfde }; VB[id] = d.bron;
+      show(VT[key]);
+    }).catch(function (err) {
+      var f = err && err.fout;
+      b.disabled = false; b.textContent = 'Vertaal';
+      toast(f === 'geen_sleutel' ? 'Vertalen staat nog niet aan.' : f === 'limiet' ? 'De vertaal-limiet van deze maand is bereikt.' : 'Vertalen lukt nu niet.');
+    });
+  });
+
   /* ---------- taal ---------- */
   function langLabel(l) { var x = I18N.langs[l]; return x.vlag + ' ' + x.naam; }
   function renderLang() {
@@ -1544,7 +1588,7 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
   $('#langopts').addEventListener('click', function (e) { var b = e.target.closest('[data-lang]'); if (b) I18N.set(b.dataset.lang); });
   $('#gate-lang').addEventListener('click', function () { I18N.set(this.dataset.to); });
   document.addEventListener('taal', function () {
-    renderLang(); gateLang(); drawExamples();
+    renderLang(); gateLang(); drawExamples(); VSHOW = {}; if (selected) renderDetail();
     if (!$('#pmenu').hidden) renderPMenu();
     if (map && map.isStyleLoaded()) dutchNames();
   });
