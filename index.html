@@ -359,7 +359,10 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
 .hcard:active .hph { transform: scale(.98); }
 .maphead { display: flex; justify-content: space-between; align-items: baseline; }
 
-.tfill { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 27px; background: linear-gradient(140deg, hsl(var(--h) var(--hs) var(--hl1)), hsl(var(--h) var(--hs) var(--hl2))); }
+.tfill .ti { font-family: var(--font-display); font-weight: 700; font-size: 36px; line-height: 1; margin-top: -4px; }
+.tfill .tfl { position: absolute; right: 6px; bottom: 6px; display: flex; }
+.tfill .tfl svg { width: 17px; height: 17px; display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+.tfill { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 27px; color: var(--fg); background: linear-gradient(140deg, hsl(var(--h) var(--hs) var(--hl1)), hsl(var(--h) var(--hs) var(--hl2))); }
 .langbtn { align-self: flex-end; background: var(--bg); border: 1.5px solid var(--line); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13.5px; font-weight: 700; color: inherit; cursor: pointer; margin-bottom: -6px; }
 .thopt .sw.flagsw { display: flex; align-items: center; justify-content: center; font-size: 28px; background: var(--surface); }
 .vtbtn { align-self: flex-start; background: none; border: 0; padding: 2px 0; color: var(--accent); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
@@ -1191,7 +1194,8 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
   function thumb(r) {
     var p = photosOf(r).filter(function (x) { return x.data; })[0];
     if (p) return '<img src="' + esc(p.data) + '" alt="" loading="lazy">';
-    return '<span class="tfill" style="--h:' + hue(r.name) + '">' + emo(r.cuisine) + '</span>';
+    var f0 = flagsFor(r.cuisine)[0];
+    return '<span class="tfill" style="--h:' + cuhue(r.cuisine, r.name) + '"><span class="ti">' + esc((r.name || '?').trim().charAt(0).toUpperCase()) + '</span>' + (f0 ? '<span class="tfl">' + flagSvg(f0) + '</span>' : '') + '</span>';
   }
   function renderList() {
     var box = $('#list');
