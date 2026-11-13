@@ -346,6 +346,10 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
 .hcard .hph { position: relative; width: 204px; height: 134px; border-radius: 18px; overflow: hidden; display: block; box-shadow: var(--shadow); margin-bottom: 7px; }
 .hcard .hph img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .hcard .hfill { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 54px; background: linear-gradient(140deg, hsl(var(--h) var(--hs) var(--hl1)), hsl(var(--h) var(--hs) var(--hl2))); }
+.hcard .typo { flex-direction: column; align-items: stretch; justify-content: space-between; padding: 42px 13px 11px; box-sizing: border-box; text-align: left; color: var(--fg); font-size: inherit; }
+.hcard .typo .tn { font-family: var(--font-display); font-weight: 700; font-size: 21px; line-height: 1.1; letter-spacing: -0.01em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-wrap: balance; }
+.hcard .typo .tf { display: flex; }
+.hcard .typo .nudge { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; padding: 4px 9px; border-radius: 999px; border: 1px dashed color-mix(in srgb, var(--fg) 45%, transparent); background: color-mix(in srgb, var(--fg) 8%, transparent); white-space: nowrap; }
 .hcard .badge { position: absolute; top: 9px; left: 9px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
 .hcard .hrt { position: absolute; top: 8px; right: 9px; width: 30px; height: 30px; border-radius: 50%; background: var(--surface); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
 .hcard b { font-size: 15.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1373,6 +1377,7 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
     mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/>',
     store: '<path d="M4 9l1.5-5h13L20 9"/><path d="M4 9a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0A2.7 2.7 0 0 0 20 9"/><path d="M5.5 12v8h13v-8"/>',
     clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    camera: '<path d="M5 8h2l1.5-2h7L17 8h2a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5v-8A1.5 1.5 0 0 1 5 8z"/><circle cx="12" cy="13" r="3.2"/>',
     chev: '<path d="M9 5l7 7-7 7"/>',
     moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
     globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 3.6 5.4 3.6 8.5s-1.1 5.9-3.6 8.5c-2.5-2.6-3.6-5.4-3.6-8.5s1.1-5.9 3.6-8.5z"/>'
@@ -1600,10 +1605,16 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
     Indiaas: '🍛', Indonesisch: '🍢', 'Israëlisch': '🧆', Koreaans: '🥢', Libanees: '🥙', Marokkaans: '🍲', Mexicaans: '🌮', Peruaans: '🐟', Pools: '🥟',
     Portugees: '🦐', Surinaams: '🌶️', Thais: '🍤', Turks: '🥙', Vietnamees: '🍜', Zwitsers: '🫕' };
   function emo(c) { return EMO[canonCuisine(c)] || '🍽️'; }
+  var CUHUE = { Frans: 218, Italiaans: 140, Spaans: 18, Japans: 345, Grieks: 195, Mexicaans: 32, Chinees: 4, Indiaas: 40, Thais: 98, Nederlands: 28, Mediterraan: 172, Amerikaans: 355, Turks: 8, Libanees: 150, Portugees: 12 };
   function hue(name) { return 8 + hash(name) % 42; }
+  function cuhue(c, name) { var k = canonCuisine(c); return k && CUHUE[k] != null ? CUHUE[k] : (k ? hash(k) % 360 : hue(name)); }
+  function typo(name, cuisine, nudge) {
+    return '<span class="hfill typo" style="--h:' + cuhue(cuisine, name) + '"><span class="tn">' + esc(name) + '</span>' +
+      (nudge ? '<span class="nudge">' + ic('camera', 13) + 'Voeg de eerste foto toe</span>' : '<span class="tf">' + flagRow(flagsFor(cuisine)) + '</span>') + '</span>';
+  }
   function hcard(r, extra) {
     var s = avg(r), p = photosOf(r).filter(function (x) { return x.data; })[0];
-    var ph = p ? '<img src="' + esc(p.data) + '" alt="" loading="lazy">' : '<span class="hfill" style="--h:' + hue(r.name) + '">' + emo(r.cuisine) + '</span>';
+    var ph = p ? '<img src="' + esc(p.data) + '" alt="" loading="lazy">' : typo(r.name, r.cuisine, !!me);
     var heart = me && wlHas(r.name, r.lat, r.lon) ? '<span class="hrt" aria-label="Op je lijstje">♥</span>' : '';
     return '<button type="button" class="hcard" data-open="' + esc(r.id) + '"><span class="hph">' + ph + '<span class="badge l' + level(s) + '">' + fmt(s) + '</span>' + heart + '</span>' +
       '<b>' + esc(r.name) + '</b><span class="sub">' + flagRow(r.flags) + esc(r.cuisine || 'Keuken onbekend') + (r.city ? ' · ' + esc(r.city) : '') + '</span>' + (extra || '') + '</button>';
@@ -1611,7 +1622,7 @@ input[type=text]:focus, input[type=email]:focus, textarea:focus, #s-loc:focus, #
   function wcard(w) {
     var r = R.filter(function (x) { return norm(x.name) === norm(w.naam) && dist(x.lon, x.lat, w.lon, w.lat) < 0.3; })[0];
     if (r) return hcard(r);
-    return '<button type="button" class="hcard" data-wish="' + esc(w.naam) + '"><span class="hph"><span class="hfill" style="--h:' + hue(w.naam) + '">' + emo(w.keuken) + '</span><span class="hrt">♥</span></span>' +
+    return '<button type="button" class="hcard" data-wish="' + esc(w.naam) + '"><span class="hph">' + typo(w.naam, w.keuken, false) + '<span class="hrt">♥</span></span>' +
       '<b>' + esc(w.naam) + '</b><span class="sub">' + flagRow(flagsFor(w.keuken)) + esc([w.keuken, w.stad].filter(Boolean).join(' · ') || 'Nog geen review') + '</span></button>';
   }
   function hsec(title, cards, more) {
